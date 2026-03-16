@@ -1,4 +1,4 @@
-package logic
+package handlers
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"example.com/test/models"
+	"example.com/test/ws"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -14,18 +15,14 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func HandleServerSideSocket(ctx *gin.Context, hub *Hub, log *log.Logger) {
-	// Now we have the gin's context and websocket created,
-	// Handle the connection to websocket and make a persistent messaging
-	// channel
+func HandleServerSideSocket(ctx *gin.Context, hub *ws.Hub, log *log.Logger) {
 	conn, _ := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	client_id := ctx.Param("id")
 
-	client := models.NewClient(client_id, conn)
+	client := ws.NewClient(client_id, conn)
 
 	hub.Register(client)
 
-	// Now run and listen to the client
 	done := make(chan bool)
 
 	defer func() {
@@ -39,7 +36,7 @@ func HandleServerSideSocket(ctx *gin.Context, hub *Hub, log *log.Logger) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			fmt.Printf("Error reading from the agent sockett %s: %v", "test", err)
+			fmt.Printf("Error reading from the agent socket %s: %v", client_id, err)
 			break
 		}
 		fmt.Printf("Received this message : %s\n", message)
@@ -47,11 +44,7 @@ func HandleServerSideSocket(ctx *gin.Context, hub *Hub, log *log.Logger) {
 
 }
 
-func SendCommandsToClient(client *models.Client, conn *websocket.Conn, done chan bool) {
-	// This function is responsible for sending a message
-	// to the client over the websocket after the POST request
-
-	// Listen to the client send channel
+func SendCommandsToClient(client *ws.Client, conn *websocket.Conn, done chan bool) {
 	defer fmt.Println("Stopping writes")
 	for {
 		select {
@@ -63,8 +56,7 @@ func SendCommandsToClient(client *models.Client, conn *websocket.Conn, done chan
 	}
 }
 
-// HandlePushMessage handles POST requests to send messages to connected clients
-func HandlePushMessage(ctx *gin.Context, hub *Hub, log *log.Logger) {
+func HandlePushMessage(ctx *gin.Context, hub *ws.Hub, log *log.Logger) {
 	id := ctx.Param("id")
 
 	var job models.Job
@@ -73,16 +65,14 @@ func HandlePushMessage(ctx *gin.Context, hub *Hub, log *log.Logger) {
 		return
 	}
 
-	hub.Mu.RLock()
-	client, exists := hub.Clients()[id]
-	hub.Mu.RUnlock()
+	client, exists := hub.GetClient(id)
 
 	if exists {
 		select {
 		case client.Send <- job.Command:
 			ctx.JSON(200, gin.H{"status": "Sent to agent"})
 		default:
-			ctx.JSON(504, gin.H{"error": "meh"})
+			ctx.JSON(504, gin.H{"error": "Agent channel full"})
 		}
 	} else {
 		ctx.JSON(404, gin.H{"error": "Agent is down"})

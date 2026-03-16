@@ -6,13 +6,13 @@ import (
 	"os"
 
 	"example.com/test/handlers"
-	serverside "example.com/test/logic"
+	"example.com/test/ws"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-func Cleanup(hub *serverside.Hub) {
-	close(hub.Stop)
+func Cleanup(hub *ws.Hub) {
+	hub.Stop()
 }
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 	}
 	log.SetOutput(logfile)
 	// Now i have to initialize a new hub
-	our_hub := serverside.NewHub()
+	our_hub := ws.NewHub()
 
 	go our_hub.Run()
 	// Creating the Gin Router with default middleware
@@ -34,11 +34,11 @@ func main() {
 
 	// write some api
 	r.GET("/ws/:id", func(ctx *gin.Context) {
-		serverside.HandleServerSideSocket(ctx, our_hub, log.Default())
+		handlers.HandleServerSideSocket(ctx, our_hub, log.Default())
 	})
 
 	r.POST("/push/:id", func(ctx *gin.Context) {
-		serverside.HandlePushMessage(ctx, our_hub, log.Default())
+		handlers.HandlePushMessage(ctx, our_hub, log.Default())
 	})
 
 	r.GET("/clients", func(ctx *gin.Context) {

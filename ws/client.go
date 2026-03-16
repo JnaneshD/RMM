@@ -1,18 +1,8 @@
-package models
+package ws
 
 import (
-	"sync"
-
 	"github.com/gorilla/websocket"
 )
-
-type Hub struct {
-	Clients    map[string]*Client
-	Register   chan *Client
-	Unregister chan *Client
-	Mu         sync.RWMutex
-	Stop       chan struct{}
-}
 
 type Client struct {
 	ID   string
@@ -26,8 +16,4 @@ func NewClient(clientID string, conn *websocket.Conn) *Client {
 		conn: conn,
 		Send: make(chan string),
 	}
-}
-
-type Job struct {
-	Command string `json:"command" binding:"required"`
 }
