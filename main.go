@@ -45,6 +45,10 @@ func main() {
 		handlers.ReturnClients(ctx, our_hub)
 	})
 
+	r.GET("/jobs", func(ctx *gin.Context) {
+		handlers.ReturnJobs(ctx, our_hub)
+	})
+
 	r.Run("0.0.0.0:8000")
 
 	// Add cleanup

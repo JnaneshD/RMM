@@ -66,7 +66,7 @@ func HandlePushMessage(ctx *gin.Context, hub *ws.Hub, log *log.Logger) {
 	}
 
 	client, exists := hub.GetClient(id)
-
+	hub.AddJobToClient(job, client)
 	if exists {
 		select {
 		case client.Send <- job.Command:

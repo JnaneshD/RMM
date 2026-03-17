@@ -3,22 +3,26 @@ package ws
 import (
 	"fmt"
 	"sync"
+
+	"example.com/test/models"
 )
 
 type Hub struct {
-	clients    map[string]*Client
-	register   chan *Client
-	unregister chan *Client
-	mu         sync.RWMutex
-	stop       chan struct{}
+	clients     map[string]*Client
+	register    chan *Client
+	unregister  chan *Client
+	mu          sync.RWMutex
+	stop        chan struct{}
+	Client_Jobs map[*Client][]models.Job
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		clients:    make(map[string]*Client),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		stop:       make(chan struct{}),
+		clients:     make(map[string]*Client),
+		register:    make(chan *Client),
+		unregister:  make(chan *Client),
+		stop:        make(chan struct{}),
+		Client_Jobs: make(map[*Client][]models.Job),
 	}
 }
 
@@ -63,4 +67,10 @@ func (h *Hub) GetClient(id string) (*Client, bool) {
 
 func (h *Hub) Stop() {
 	close(h.stop)
+}
+
+func (h *Hub) AddJobToClient(job models.Job, client *Client) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Client_Jobs[client] = append(h.Client_Jobs[client], job)
 }
