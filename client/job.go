@@ -3,45 +3,20 @@ package main
 
 import (
 	"os/exec"
-	"sync/atomic"
+
+	"example.com/test/models"
 )
 
-type JobStatus int
-
-const (
-	WAIT JobStatus = iota
-	RUNNING
-	FINISHED
-	FAILED
-)
-
-type Job struct {
-	JobId   int
-	command string
-	Output  string
-	Status  JobStatus
-}
-
-var jobId atomic.Int64
-
-func NewJob(command string) *Job {
-	return &Job{
-		JobId:   int(jobId.Add(1)),
-		command: command,
-		Status:  WAIT,
-	}
-}
-
-func (job *Job) Execute() {
+func Execute(job *models.Job) {
 	// Now we need to execute the job in the client
-	cmd := exec.Command("cmd", "/C", job.command)
+	cmd := exec.Command("cmd", "/C", job.Command)
 	stdout, err := cmd.Output()
 
 	if err != nil {
 		job.Output = err.Error()
-		job.Status = FAILED
+		job.Status = models.FAILED
 	} else {
-		job.Status = FINISHED
+		job.Status = models.FINISHED
 		job.Output = string(stdout)
 	}
 }

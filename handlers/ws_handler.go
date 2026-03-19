@@ -33,13 +33,24 @@ func HandleServerSideSocket(ctx *gin.Context, hub *ws.Hub, log *log.Logger) {
 
 	go SendCommandsToClient(client, conn, done)
 
+	// Lets declare a variable to hold incoming jobs
 	for {
-		_, message, err := conn.ReadMessage()
+		var jobdata_from_client models.Job
+		err := conn.ReadJSON(&jobdata_from_client)
 		if err != nil {
 			fmt.Printf("Error reading from the agent socket %s: %v", client_id, err)
 			break
 		}
-		fmt.Printf("Received this message : %s\n", message)
+
+		// Do we have the same job in our array
+		if _, ok := hub.Client_Jobs[client][jobdata_from_client.ID]; ok == true {
+			hub.Client_Jobs[client][jobdata_from_client.ID] = jobdata_from_client
+
+		} else {
+			fmt.Println("We messed up")
+		}
+		// Now add the job to the
+
 	}
 
 }
@@ -49,7 +60,8 @@ func SendCommandsToClient(client *ws.Client, conn *websocket.Conn, done chan boo
 	for {
 		select {
 		case message := <-client.Send:
-			conn.WriteMessage(websocket.TextMessage, []byte(message))
+			conn.WriteJSON(message)
+			//conn.WriteMessage(websocket.TextMessage, []byte(message))
 		case <-done:
 			return
 		}
@@ -64,12 +76,17 @@ func HandlePushMessage(ctx *gin.Context, hub *ws.Hub, log *log.Logger) {
 		ctx.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
+	job.ClientID = id
+
+	// Now assign a id to the job
+	job_id := hub.NextID()
+	job.ID = job_id
 
 	client, exists := hub.GetClient(id)
 	hub.AddJobToClient(job, client)
 	if exists {
 		select {
-		case client.Send <- job.Command:
+		case client.Send <- job:
 			ctx.JSON(200, gin.H{"status": "Sent to agent"})
 		default:
 			ctx.JSON(504, gin.H{"error": "Agent channel full"})

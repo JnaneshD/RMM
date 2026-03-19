@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"example.com/test/models"
 	"github.com/gorilla/websocket"
 )
 
@@ -44,14 +45,16 @@ func main() {
 			log.Println("Closing the client as per request")
 		default:
 			// We will read the pipe that was just opened
-			_, message, err := conn.ReadMessage()
+			var newjob models.Job
+			err := conn.ReadJSON(&newjob)
 			if err != nil {
 				log.Println("Read error", err)
 				return
 			}
 			fmt.Println("Hmm here it is")
-			log.Printf("Currently we have received this job %s", message)
-			scheduler.AddJobImmediate(string(message))
+			fmt.Printf("Currently we have received this job %s", newjob.Command)
+			fmt.Printf("%+v\n", newjob)
+			scheduler.AddJobImmediate(&newjob)
 
 		}
 	}
