@@ -5,9 +5,15 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 
 	"example.com/test/models"
 	"github.com/gorilla/websocket"
+)
+
+const (
+	JobQueueSize = 100
+	NumWorkers   = 4
 )
 
 func main() {
@@ -32,6 +38,10 @@ func main() {
 
 	// Create aa channel to catch Ctrl + C so we close gracefully
 	interrupt := make(chan os.Signal, 1)
+
+	// Lets create a Job Queue and Schduler
+	jobQueue := make(chan *models.Job, JobQueueSize)
+
 	go func() {
 		<-interrupt
 		cancel()
@@ -39,23 +49,45 @@ func main() {
 
 	scheduler := JobScheduler{conn: conn}
 
+	// Start those workers here
+	var wg sync.WaitGroup
+	for i := range NumWorkers {
+		wg.Add(1)
+		go func(workerId int) {
+			defer wg.Done()
+			Worker(ctx, workerId, jobQueue, &scheduler)
+		}(i)
+	}
+	read_socket(ctx, jobQueue, conn)
+	cancel()
+	wg.Wait()
+	log.Println("Shutting down")
+}
+
+func read_socket(ctx context.Context, jobQueue chan *models.Job, conn *websocket.Conn) {
+	defer close(jobQueue)
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("Closing the client as per request")
+			log.Println("read_socket: context cancelled, stopping the reader")
+			return
+
 		default:
-			// We will read the pipe that was just opened
 			var newjob models.Job
 			err := conn.ReadJSON(&newjob)
 			if err != nil {
-				log.Println("Read error", err)
+				log.Println("Read error from the server", err)
 				return
 			}
-			fmt.Println("Hmm here it is")
-			fmt.Printf("Currently we have received this job %s", newjob.Command)
-			fmt.Printf("%+v\n", newjob)
-			scheduler.AddJobImmediate(&newjob)
+			log.Printf("Received this job %s", newjob.Command)
 
+			select {
+			case jobQueue <- &newjob:
+			case <-ctx.Done():
+				log.Println("read_socket: context cancelled while enqueuing, stopping")
+				return
+			}
 		}
+
 	}
 }

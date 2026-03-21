@@ -2,14 +2,19 @@
 package main
 
 import (
+	"context"
 	"os/exec"
+	"time"
 
 	"example.com/test/models"
 )
 
 func Execute(job *models.Job) {
 	// Now we need to execute the job in the client
-	cmd := exec.Command("cmd", "/C", job.Command)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "cmd", "/C", job.Command)
 	stdout, err := cmd.Output()
 
 	if err != nil {
