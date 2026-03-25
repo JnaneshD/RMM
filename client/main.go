@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	"example.com/test/models"
+	"example.com/test/wsheartbeat"
 	"github.com/gorilla/websocket"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 const (
@@ -18,12 +20,14 @@ const (
 
 func main() {
 	// We should configure the log file also
-	logfile, err := os.OpenFile("clientside.log", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
-	if err != nil {
-		fmt.Println("Error Opening log file")
-	}
 
-	log.SetOutput(logfile)
+	log.SetOutput(&lumberjack.Logger{
+		Filename:   "clientSide.log",
+		MaxSize:    1, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28, // days
+		Compress:   true,
+	})
 
 	url := "ws://localhost:8000/ws/agent1"
 	log.Printf("Connecting to the URL : %s", url)
@@ -47,7 +51,14 @@ func main() {
 		cancel()
 	}()
 
-	scheduler := JobScheduler{conn: conn}
+	scheduler := &JobScheduler{
+		Jobs: make([]models.Job, 0),
+		conn: conn,
+		send: make(chan *models.Job, 10),
+	}
+
+	// Setup the write pump
+	go scheduler.writePump()
 
 	// Start those workers here
 	var wg sync.WaitGroup
@@ -55,7 +66,7 @@ func main() {
 		wg.Add(1)
 		go func(workerId int) {
 			defer wg.Done()
-			Worker(ctx, workerId, jobQueue, &scheduler)
+			Worker(ctx, workerId, jobQueue, scheduler)
 		}(i)
 	}
 	read_socket(ctx, jobQueue, conn)
@@ -66,27 +77,48 @@ func main() {
 
 func read_socket(ctx context.Context, jobQueue chan *models.Job, conn *websocket.Conn) {
 	defer close(jobQueue)
+
+	conn.SetReadDeadline(time.Now().Add(wsheartbeat.PongWait))
+
+	conn.SetPingHandler(func(data string) error {
+		log.Println("writing pong")
+		conn.SetReadDeadline(time.Now().Add(wsheartbeat.PongWait))
+		return conn.WriteControl(
+			websocket.PongMessage, []byte(data),
+			time.Now().Add(wsheartbeat.WriteWait),
+		)
+	})
 	for {
-		select {
-		case <-ctx.Done():
-			log.Println("read_socket: context cancelled, stopping the reader")
+
+		var newjob models.Job
+		err := conn.ReadJSON(&newjob)
+		if err != nil {
+			if ctx.Err() != nil {
+				log.Println("read_socket: context cancelled, stopping the reader")
+				return
+			}
+			if websocket.IsUnexpectedCloseError(err,
+				websocket.CloseGoingAway,
+				websocket.CloseAbnormalClosure,
+			) {
+				log.Println("read_socket: unexpected close error:", err)
+			} else {
+				// deadline timeout — server missed heartbeat
+				log.Println("read_socket: connection dead (missed heartbeat):", err)
+			}
 			return
+		}
+		log.Printf("Received this job %s", newjob.Command)
 
-		default:
-			var newjob models.Job
-			err := conn.ReadJSON(&newjob)
-			if err != nil {
-				log.Println("Read error from the server", err)
-				return
-			}
-			log.Printf("Received this job %s", newjob.Command)
+		log.Printf("Received this job %s", newjob.Command)
+		newjob.Status = models.WAIT
 
-			select {
-			case jobQueue <- &newjob:
-			case <-ctx.Done():
-				log.Println("read_socket: context cancelled while enqueuing, stopping")
-				return
-			}
+		// Make the status of job like wait
+		select {
+		case jobQueue <- &newjob:
+		case <-ctx.Done():
+			log.Println("read_socket: context cancelled while enqueuing, stopping")
+			return
 		}
 
 	}

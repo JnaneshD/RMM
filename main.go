@@ -1,14 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"os"
 
 	"example.com/test/handlers"
 	"example.com/test/ws"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 func Cleanup(hub *ws.Hub) {
@@ -19,12 +17,13 @@ func main() {
 
 	// logger
 
-	fmt.Println(uuid.New())
-	logfile, err := os.OpenFile("backend.log", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
-	if err != nil {
-		return
-	}
-	log.SetOutput(logfile)
+	log.SetOutput(&lumberjack.Logger{
+		Filename:   "clientSide.log",
+		MaxSize:    1, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28, // days
+		Compress:   true,
+	})
 	// Now i have to initialize a new hub
 	our_hub := ws.NewHub()
 

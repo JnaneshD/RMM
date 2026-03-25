@@ -1,12 +1,13 @@
 package handlers
 
 import (
-	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"example.com/test/models"
 	"example.com/test/ws"
+	"example.com/test/wsheartbeat"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -33,12 +34,28 @@ func HandleServerSideSocket(ctx *gin.Context, hub *ws.Hub, log *log.Logger) {
 
 	go SendCommandsToClient(client, conn, done)
 
+	// Set the read deadline
+	conn.SetReadDeadline(time.Now().Add(wsheartbeat.PongWait))
+
+	conn.SetPongHandler(func(appData string) error {
+		conn.SetReadDeadline(time.Now().Add(wsheartbeat.PongWait))
+		return nil
+	})
+
 	// Lets declare a variable to hold incoming jobs
 	for {
 		var jobdata_from_client models.Job
 		err := conn.ReadJSON(&jobdata_from_client)
 		if err != nil {
-			fmt.Printf("Error reading from the agent socket %s: %v", client_id, err)
+			if websocket.IsUnexpectedCloseError(err,
+				websocket.CloseGoingAway,
+				websocket.CloseAbnormalClosure,
+			) {
+				log.Printf("unexpected close from agent %s: %v", client_id, err)
+			} else {
+				// either deadline expired (missed heartbeat) or normal close
+				log.Printf("agent %s disconnected: %v", client_id, err)
+			}
 			break
 		}
 
@@ -47,7 +64,7 @@ func HandleServerSideSocket(ctx *gin.Context, hub *ws.Hub, log *log.Logger) {
 			hub.Client_Jobs[client][jobdata_from_client.ID] = jobdata_from_client
 
 		} else {
-			fmt.Println("We messed up")
+			log.Println("We messed up")
 		}
 		// Now add the job to the
 
@@ -56,9 +73,17 @@ func HandleServerSideSocket(ctx *gin.Context, hub *ws.Hub, log *log.Logger) {
 }
 
 func SendCommandsToClient(client *ws.Client, conn *websocket.Conn, done chan bool) {
-	defer fmt.Println("Stopping writes")
+	ticker := time.NewTicker(wsheartbeat.PingInterval)
+	defer log.Println("Stopping writes")
 	for {
 		select {
+		case <-ticker.C:
+			log.Println("sending the ping to client")
+			if err := conn.WriteControl(
+				websocket.PingMessage, nil, time.Now().Add(wsheartbeat.WriteWait),
+			); err != nil {
+				return
+			}
 		case message := <-client.Send:
 			conn.WriteJSON(message)
 			//conn.WriteMessage(websocket.TextMessage, []byte(message))

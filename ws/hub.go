@@ -1,7 +1,7 @@
 package ws
 
 import (
-	"fmt"
+	"log"
 	"sync"
 
 	"example.com/test/models"
@@ -33,13 +33,13 @@ func (h *Hub) Run() {
 			h.mu.Lock()
 			h.clients[client.ID] = client
 			h.mu.Unlock()
-			fmt.Printf("Agent %s got connected\n", client.ID)
+			log.Printf("Agent %s got connected\n", client.ID)
 		case client := <-h.unregister:
 			h.mu.Lock()
 			delete(h.clients, client.ID)
 			h.mu.Unlock()
 			close(client.Send)
-			fmt.Printf("Agent %s got disconnected\n", client.ID)
+			log.Printf("Agent %s got disconnected\n", client.ID)
 		case <-h.stop:
 			return
 		}

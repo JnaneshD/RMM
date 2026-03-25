@@ -4,8 +4,10 @@ import (
 	"context"
 	"log"
 	"sync"
+	"time"
 
 	"example.com/test/models"
+	"example.com/test/wsheartbeat"
 	"github.com/gorilla/websocket"
 )
 
@@ -18,6 +20,7 @@ type JobScheduler struct {
 	Jobs []models.Job
 	mu   sync.RWMutex
 	conn *websocket.Conn
+	send chan *models.Job
 }
 
 func (jsler *JobScheduler) AddJobImmediate(newjob *models.Job) {
@@ -26,14 +29,12 @@ func (jsler *JobScheduler) AddJobImmediate(newjob *models.Job) {
 	jsler.mu.Unlock()
 	Execute(newjob)
 
-	// Handle the collisions
-	jsler.mu.Lock()
-	err := jsler.conn.WriteJSON(newjob)
-	jsler.mu.Unlock()
-	if err != nil {
-		log.Printf("WriteJSON errored for job %s , %v", newjob.Command, err)
+	// Non blocking send to write channel
+	select {
+	case jsler.send <- newjob:
+	default:
+		log.Printf("Send Channel is full, dropping result %s", newjob.Command)
 	}
-	//jsler.conn.WriteMessage(websocket.TextMessage, []byte(newjob.Output))
 }
 
 func Worker(ctx context.Context, id int, jobQueue <-chan *models.Job, scheduler *JobScheduler) {
@@ -50,6 +51,16 @@ func Worker(ctx context.Context, id int, jobQueue <-chan *models.Job, scheduler 
 			}
 			log.Printf("Worker %d, executing the job %s", id, job.Command)
 			scheduler.AddJobImmediate(job)
+		}
+	}
+}
+
+func (jsler *JobScheduler) writePump() {
+	for newjob := range jsler.send {
+		jsler.conn.SetWriteDeadline(time.Now().Add(wsheartbeat.WriteWait))
+		if err := jsler.conn.WriteJSON(newjob); err != nil {
+			log.Printf("WriteJSON errored for job %s: %v", newjob.Command, err)
+			return
 		}
 	}
 }
