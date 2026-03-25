@@ -18,7 +18,7 @@ func main() {
 	// logger
 
 	log.SetOutput(&lumberjack.Logger{
-		Filename:   "clientSide.log",
+		Filename:   "backend.log",
 		MaxSize:    1, // megabytes
 		MaxBackups: 3,
 		MaxAge:     28, // days

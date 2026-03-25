@@ -52,9 +52,10 @@ func main() {
 	}()
 
 	scheduler := &JobScheduler{
-		Jobs: make([]models.Job, 0),
-		conn: conn,
-		send: make(chan *models.Job, 10),
+		Jobs:     make([]models.Job, 0),
+		conn:     conn,
+		send:     make(chan *models.Job, 10),
+		executor: NewExecutor(),
 	}
 
 	// Setup the write pump
