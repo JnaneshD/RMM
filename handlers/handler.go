@@ -29,7 +29,7 @@ func ReturnJobs(ctx *gin.Context, hub *ws.Hub) {
 
 		}
 		for _, job := range jobs {
-			exportable[clientID] = append(exportable[clientID], job)
+			exportable[clientID] = append(exportable[clientID], *job)
 		}
 	}
 

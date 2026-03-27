@@ -32,8 +32,6 @@ func HandleServerSideSocket(ctx *gin.Context, hub *ws.Hub, log *log.Logger) {
 		conn.Close()
 	}()
 
-	go SendCommandsToClient(client, conn, done)
-
 	// Set the read deadline
 	conn.SetReadDeadline(time.Now().Add(wsheartbeat.PongWait))
 
@@ -42,33 +40,9 @@ func HandleServerSideSocket(ctx *gin.Context, hub *ws.Hub, log *log.Logger) {
 		return nil
 	})
 
-	// Lets declare a variable to hold incoming jobs
-	for {
-		var jobdata_from_client models.Job
-		err := conn.ReadJSON(&jobdata_from_client)
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err,
-				websocket.CloseGoingAway,
-				websocket.CloseAbnormalClosure,
-			) {
-				log.Printf("unexpected close from agent %s: %v", client_id, err)
-			} else {
-				// either deadline expired (missed heartbeat) or normal close
-				log.Printf("agent %s disconnected: %v", client_id, err)
-			}
-			break
-		}
-
-		// Do we have the same job in our array
-		if _, ok := hub.Client_Jobs[client][jobdata_from_client.ID]; ok == true {
-			hub.Client_Jobs[client][jobdata_from_client.ID] = jobdata_from_client
-
-		} else {
-			log.Println("We messed up")
-		}
-		// Now add the job to the
-
-	}
+	go SendCommandsToClient(client, conn, done)
+	go ReceiveJobOutputFromClient(client, conn, done, client_id, hub)
+	<-done
 
 }
 
@@ -78,10 +52,13 @@ func SendCommandsToClient(client *ws.Client, conn *websocket.Conn, done chan boo
 	for {
 		select {
 		case <-ticker.C:
-			log.Println("sending the ping to client")
 			if err := conn.WriteControl(
 				websocket.PingMessage, nil, time.Now().Add(wsheartbeat.WriteWait),
 			); err != nil {
+				select {
+				case done <- true:
+				default:
+				}
 				return
 			}
 		case message := <-client.Send:
@@ -119,4 +96,39 @@ func HandlePushMessage(ctx *gin.Context, hub *ws.Hub, log *log.Logger) {
 	} else {
 		ctx.JSON(404, gin.H{"error": "Agent is down"})
 	}
+}
+
+func ReceiveJobOutputFromClient(client *ws.Client, conn *websocket.Conn, done chan bool, client_id string, hub *ws.Hub) {
+	for {
+		var jobdata_from_client models.Job
+		err := conn.ReadJSON(&jobdata_from_client)
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err,
+				websocket.CloseGoingAway,
+				websocket.CloseAbnormalClosure,
+			) {
+				log.Printf("unexpected close from agent %s: %v", client_id, err)
+			} else {
+				// either deadline expired (missed heartbeat) or normal close
+				log.Printf("agent %s disconnected: %v", client_id, err)
+			}
+			select {
+			case done <- true:
+			default:
+			}
+			return
+		}
+
+		// Do we have the same job in our array
+		if existing_job, ok := hub.Client_Jobs[client][jobdata_from_client.ID]; ok == true {
+			existing_job.Status = jobdata_from_client.Status
+			existing_job.Output = jobdata_from_client.Output
+
+		} else {
+			log.Println("We messed up")
+		}
+		// Now add the job to the
+
+	}
+
 }

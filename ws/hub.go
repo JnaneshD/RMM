@@ -13,7 +13,7 @@ type Hub struct {
 	unregister  chan *Client
 	mu          sync.RWMutex
 	stop        chan struct{}
-	Client_Jobs map[*Client]map[uint64]models.Job
+	Client_Jobs map[*Client]map[uint64]*models.Job
 }
 
 func NewHub() *Hub {
@@ -22,7 +22,7 @@ func NewHub() *Hub {
 		register:    make(chan *Client),
 		unregister:  make(chan *Client),
 		stop:        make(chan struct{}),
-		Client_Jobs: make(map[*Client]map[uint64]models.Job),
+		Client_Jobs: make(map[*Client]map[uint64]*models.Job),
 	}
 }
 
@@ -73,9 +73,9 @@ func (h *Hub) AddJobToClient(job models.Job, client *Client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.Client_Jobs[client] == nil {
-		h.Client_Jobs[client] = make(map[uint64]models.Job)
+		h.Client_Jobs[client] = make(map[uint64]*models.Job)
 	}
-	h.Client_Jobs[client][uint64(job.ID)] = job
+	h.Client_Jobs[client][uint64(job.ID)] = &job
 }
 
 var (

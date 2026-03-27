@@ -82,7 +82,6 @@ func read_socket(ctx context.Context, jobQueue chan *models.Job, conn *websocket
 	conn.SetReadDeadline(time.Now().Add(wsheartbeat.PongWait))
 
 	conn.SetPingHandler(func(data string) error {
-		log.Println("writing pong")
 		conn.SetReadDeadline(time.Now().Add(wsheartbeat.PongWait))
 		return conn.WriteControl(
 			websocket.PongMessage, []byte(data),
