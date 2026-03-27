@@ -1,4 +1,4 @@
-package wsheartbeat
+package heartbeat
 
 import "time"
 
