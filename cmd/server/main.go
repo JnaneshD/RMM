@@ -38,6 +38,9 @@ func main() {
 	router.POST("/push/:id", httpHandler.HandlePushMessage)
 	router.GET("/clients", httpHandler.ReturnClients)
 	router.GET("/jobs", httpHandler.ReturnJobs)
-
-	router.Run("0.0.0.0:8000")
+	router.POST("/register", httpHandler.HandleRegistration)
+	if err := router.RunTLS(":8080", "cert.pem", "key.pem"); err != nil {
+		log.Fatalf("failed to start TLS server: %v", err)
+	}
+	//router.Run("0.0.0.0:8000")
 }

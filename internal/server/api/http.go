@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"example.com/test/internal/server/service"
@@ -55,5 +56,26 @@ func (h *HTTPHandler) HandlePushMessage(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"status": "Sent to agent",
 		"job":    job,
+	})
+}
+
+func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
+	var body struct {
+		UUID        string `json:"uuid"`
+		FingerPrint string `json:"fingerprint"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil || body.UUID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid Payload",
+		})
+		return
+	}
+
+	// Now we will do the actual validation
+	log.Printf("[register] this agent with uuid %s", body.UUID)
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"session_token": body.UUID,
+		"ws_url":        "",
 	})
 }

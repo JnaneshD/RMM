@@ -31,7 +31,7 @@ func (s *JobStore) Create(clientID, command string) domain.Job {
 		Status:   domain.WAIT,
 	}
 	s.ensureClientJobsLocked(clientID)
-	s.jobsByClient[clientID][job.ID] = cloneJob(job)
+	s.jobsByClient[clientID][job.ID] = &job
 	return job
 }
 
@@ -46,7 +46,7 @@ func (s *JobStore) Update(job domain.Job) bool {
 	if _, ok := clientJobs[job.ID]; !ok {
 		return false
 	}
-	clientJobs[job.ID] = cloneJob(job)
+	clientJobs[job.ID] = &job
 	return true
 }
 
@@ -58,7 +58,7 @@ func (s *JobStore) Snapshot() map[string][]domain.Job {
 	for clientID, jobs := range s.jobsByClient {
 		list := make([]domain.Job, 0, len(jobs))
 		for _, job := range jobs {
-			list = append(list, *cloneJob(*job))
+			list = append(list, *job)
 		}
 		sort.Slice(list, func(i, j int) bool {
 			return list[i].ID < list[j].ID
@@ -72,9 +72,4 @@ func (s *JobStore) ensureClientJobsLocked(clientID string) {
 	if s.jobsByClient[clientID] == nil {
 		s.jobsByClient[clientID] = make(map[uint64]*domain.Job)
 	}
-}
-
-func cloneJob(job domain.Job) *domain.Job {
-	copy := job
-	return &copy
 }
