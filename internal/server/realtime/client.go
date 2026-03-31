@@ -6,15 +6,22 @@ import (
 )
 
 type Client struct {
-	ID   string
-	conn *websocket.Conn
-	Send chan domain.Job
+	ID          string
+	conn        *websocket.Conn
+	Send        chan domain.Job
+	Fingerprint string
+	HostName    string
 }
 
-func NewClient(clientID string, conn *websocket.Conn) *Client {
+func NewClient(clientID string, fingerprint string, hostname string) *Client {
 	return &Client{
-		ID:   clientID,
-		conn: conn,
-		Send: make(chan domain.Job),
+		ID:          clientID,
+		Fingerprint: fingerprint,
+		HostName:    hostname,
 	}
+}
+
+func (cl *Client) UpdateClient(conn *websocket.Conn) {
+	cl.conn = conn
+	cl.Send = make(chan domain.Job)
 }

@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"fmt"
 	"log"
 	"sync"
 )
@@ -43,16 +44,26 @@ func (h *Hub) Run() {
 }
 
 func (h *Hub) Register(client *Client) {
-	h.register <- client
+	h.mu.Lock()
+	h.clients[client.ID] = client
+	h.mu.Unlock()
+	log.Printf("Agent %s got connected\n", client.ID)
 }
 
 func (h *Hub) Unregister(client *Client) {
-	h.unregister <- client
+	h.mu.Lock()
+	delete(h.clients, client.ID)
+	h.mu.Unlock()
+	if client.Send != nil {
+		close(client.Send)
+	}
+	log.Printf("Agent %s got disconnected\n", client.ID)
 }
 
 func (h *Hub) GetClient(id string) (*Client, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
+	fmt.Println(h.clients)
 	client, exists := h.clients[id]
 	return client, exists
 }

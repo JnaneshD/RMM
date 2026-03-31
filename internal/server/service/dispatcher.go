@@ -34,6 +34,14 @@ func (d *Dispatcher) UnregisterClient(client *realtime.Client) {
 	d.hub.Unregister(client)
 }
 
+func (d *Dispatcher) GetClientByID(client_id string) *realtime.Client {
+	cl, exists := d.hub.GetClient(client_id)
+	if !exists {
+		return nil
+	}
+	return cl
+}
+
 func (d *Dispatcher) ClientIDs() []string {
 	ids := d.hub.ClientIDs()
 	sort.Strings(ids)

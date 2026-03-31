@@ -21,6 +21,10 @@ const (
 )
 
 func main() {
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Fatalf("get hostname: %w", err)
+	}
 	log.SetOutput(&lumberjack.Logger{
 		Filename:   "clientSide.log",
 		MaxSize:    1,
@@ -32,11 +36,18 @@ func main() {
 
 	// Fixed UUID for now — in production read from a file,
 	// generate once on first run and persist it.
-	agentUUID := "agent-dev-001"
+	agentUUID, err := runtime.AgentUUID()
+	if err != nil {
+		log.Fatalf("[agent] uuid is not correct")
+	}
+	hardwareFingerPrint, err := runtime.HardwareFingerprint()
+	if err != nil {
+		log.Fatalf("[agent] Hardware fingerprint is not working %v", err)
+	}
 
 	// --- Step 1: Register with server over HTTPS (cert pinned) ---
 	httpClient := runtime.BuildHTTPClient()
-	token, err := runtime.Register(httpClient, agentUUID)
+	token, err := runtime.Register(httpClient, agentUUID, hardwareFingerPrint, hostname)
 	if err != nil {
 		log.Fatalf("[agent] registration failed: %v", err)
 	}
@@ -44,7 +55,7 @@ func main() {
 
 	// --- Step 2: Connect WebSocket over WSS (cert pinned) ---
 	wsDialer := runtime.BuildWSDialer()
-	conn, err := runtime.ConnectWS(wsDialer, token)
+	conn, err := runtime.ConnectWS(wsDialer, token, agentUUID)
 	if err != nil {
 		log.Fatalf("[agent] websocket connection failed: %v", err)
 	}

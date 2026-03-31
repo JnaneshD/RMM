@@ -30,14 +30,29 @@ func NewSocketHandler(dispatcher *service.Dispatcher, logger *log.Logger) *Socke
 }
 
 func (h *SocketHandler) HandleServerSideSocket(ctx *gin.Context) {
+
+	clientID := ctx.Param("id")
+	token := ctx.Query("token")
+	if token == "" {
+		log.Printf("This is not correct")
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid Token",
+		})
+		return
+	}
+
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
 		h.logger.Printf("websocket upgrade failed: %v", err)
 		return
 	}
-
-	clientID := ctx.Param("id")
-	client := realtime.NewClient(clientID, conn)
+	client := h.dispatcher.GetClientByID(clientID)
+	if client == nil {
+		h.logger.Printf("websocket connect rejected for unknown client %s", clientID)
+		conn.Close()
+		return
+	}
+	client.UpdateClient(conn)
 	h.dispatcher.RegisterClient(client)
 
 	done := make(chan bool, 1)

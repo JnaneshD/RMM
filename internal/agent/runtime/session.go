@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
@@ -17,9 +18,9 @@ import (
 
 const (
 	PinnedFingerprint = "C4:20:BE:D3:ED:17:AF:42:43:F8:45:10:F6:58:48:2F:11:B3:68:8E:C7:B6:E7:EB:2C:86:65:F4:02:8E:6A:A6"
-
-	ServerHTTPS = "https://localhost:8080"
-	ServerWSS   = "wss://localhost:8080"
+	AgentSecret       = "replace-with-a-long-random-secret-string"
+	ServerHTTPS       = "https://localhost:8080"
+	ServerWSS         = "wss://localhost:8080"
 )
 
 func VerifyFingerprint(cs tls.ConnectionState) error {
@@ -73,15 +74,27 @@ func BuildWSDialer() *websocket.Dialer {
 	}
 }
 
+func sign(agentUUID, hwFingerprint, timestamp string) string {
+	mac := hmac.New(sha256.New, []byte(AgentSecret))
+	mac.Write([]byte(agentUUID + "|" + hwFingerprint + "|" + timestamp))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
 // -------------------------------------------------------------------
 // Registration — HTTP POST /register
 // Returns the session token to use for the WS connection.
 // -------------------------------------------------------------------
 
-func Register(client *http.Client, agentUUID string) (string, error) {
+func Register(client *http.Client, agentUUID string, fingerPrint string, hostname string) (string, error) {
+
+	timestamp := time.Now().UTC().Format(time.RFC3339)
+	signature := sign(agentUUID, fingerPrint, timestamp)
 	payload, err := json.Marshal(map[string]string{
 		"uuid":        agentUUID,
-		"fingerprint": "localprint", // replace with real hw fingerprint later
+		"fingerprint": fingerPrint,
+		"timestamp":   timestamp,
+		"signature":   signature,
+		"hostname":    hostname,
 	})
 	if err != nil {
 		return "", fmt.Errorf("marshal payload: %w", err)
@@ -117,8 +130,8 @@ func Register(client *http.Client, agentUUID string) (string, error) {
 // WebSocket connection — wss:// with cert pinning + token auth
 // -------------------------------------------------------------------
 
-func ConnectWS(dialer *websocket.Dialer, token string) (*websocket.Conn, error) {
-	url := fmt.Sprintf("%s/ws/agent1?token=%s", ServerWSS, token)
+func ConnectWS(dialer *websocket.Dialer, token string, uuid string) (*websocket.Conn, error) {
+	url := fmt.Sprintf("%s/ws/%s?token=%s", ServerWSS, uuid, token)
 	log.Printf("[ws] connecting to %s", url)
 
 	conn, _, err := dialer.Dial(url, nil)
