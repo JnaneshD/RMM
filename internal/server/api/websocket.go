@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
 
 	"example.com/test/internal/domain"
 	"example.com/test/internal/heartbeat"
+	"example.com/test/internal/repository"
 	"example.com/test/internal/server/realtime"
 	"example.com/test/internal/server/service"
 	"github.com/gin-gonic/gin"
@@ -18,14 +20,23 @@ var upgrader = websocket.Upgrader{
 }
 
 type SocketHandler struct {
-	dispatcher *service.Dispatcher
-	logger     *log.Logger
+	dispatcher  *service.Dispatcher
+	clientRepo  *repository.ClientRepository
+	sessionRepo *repository.SessionRepository
+	logger      *log.Logger
 }
 
-func NewSocketHandler(dispatcher *service.Dispatcher, logger *log.Logger) *SocketHandler {
+func NewSocketHandler(
+	dispatcher *service.Dispatcher,
+	clientRepo *repository.ClientRepository,
+	sessionRepo *repository.SessionRepository,
+	logger *log.Logger,
+) *SocketHandler {
 	return &SocketHandler{
-		dispatcher: dispatcher,
-		logger:     logger,
+		dispatcher:  dispatcher,
+		clientRepo:  clientRepo,
+		sessionRepo: sessionRepo,
+		logger:      logger,
 	}
 }
 
@@ -34,10 +45,20 @@ func (h *SocketHandler) HandleServerSideSocket(ctx *gin.Context) {
 	clientID := ctx.Param("id")
 	token := ctx.Query("token")
 	if token == "" {
-		log.Printf("This is not correct")
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid Token",
 		})
+		return
+	}
+
+	authenticatedClient, err := h.clientRepo.AuthenticateSession(ctx.Request.Context(), clientID, token)
+	if err != nil {
+		h.logger.Printf("websocket auth lookup failed for client %s: %v", clientID, err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "authentication failed"})
+		return
+	}
+	if authenticatedClient == nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid client credentials"})
 		return
 	}
 
@@ -46,19 +67,29 @@ func (h *SocketHandler) HandleServerSideSocket(ctx *gin.Context) {
 		h.logger.Printf("websocket upgrade failed: %v", err)
 		return
 	}
-	client := h.dispatcher.GetClientByID(clientID)
-	if client == nil {
-		h.logger.Printf("websocket connect rejected for unknown client %s", clientID)
+	session, err := h.sessionRepo.Create(context.Background(), clientID)
+	if err != nil {
+		h.logger.Printf("create session for client %s: %v", clientID, err)
 		conn.Close()
 		return
 	}
+	client := realtime.NewClient(authenticatedClient.ID, authenticatedClient.Fingerprint, authenticatedClient.HostName)
 	client.UpdateClient(conn)
 	h.dispatcher.RegisterClient(client)
+	if err := h.clientRepo.TouchLastSeen(context.Background(), clientID); err != nil {
+		h.logger.Printf("touch last_seen for client %s: %v", clientID, err)
+	}
 
 	done := make(chan bool, 1)
 
 	defer func() {
 		h.dispatcher.UnregisterClient(client)
+		if err := h.sessionRepo.MarkDisconnected(context.Background(), session.ID); err != nil {
+			h.logger.Printf("mark disconnected for client %s session %s: %v", clientID, session.ID, err)
+		}
+		if err := h.clientRepo.TouchLastSeen(context.Background(), clientID); err != nil {
+			h.logger.Printf("touch last_seen on disconnect for client %s: %v", clientID, err)
+		}
 		conn.Close()
 	}()
 

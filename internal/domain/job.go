@@ -16,3 +16,18 @@ const (
 	FINISHED
 	FAILED
 )
+
+func (s JobStatus) String() string {
+	switch s {
+	case WAIT:
+		return "pending"
+	case RUNNING:
+		return "running"
+	case FINISHED:
+		return "finished"
+	case FAILED:
+		return "failed"
+	default:
+		return "unknown"
+	}
+}

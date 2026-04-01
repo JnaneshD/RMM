@@ -1,32 +1,38 @@
 package api
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"log"
 	"net/http"
 	"time"
 
-	"example.com/test/internal/server/realtime"
+	"example.com/test/internal/domain"
+	"example.com/test/internal/repository"
 	"example.com/test/internal/server/service"
 	"github.com/gin-gonic/gin"
 )
 
-const AgentSecret = "replace-with-a-long-random-secret-string"
-
 type HTTPHandler struct {
 	dispatcher *service.Dispatcher
+	clientRepo *repository.ClientRepository
 }
 
-func NewHTTPHandler(dispatcher *service.Dispatcher) *HTTPHandler {
-	return &HTTPHandler{dispatcher: dispatcher}
+func NewHTTPHandler(dispatcher *service.Dispatcher, clientRepo *repository.ClientRepository) *HTTPHandler {
+	return &HTTPHandler{
+		dispatcher: dispatcher,
+		clientRepo: clientRepo,
+	}
 }
 
 func (h *HTTPHandler) ReturnClients(ctx *gin.Context) {
+	clients, err := h.clientRepo.ListClients(ctx.Request.Context())
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch clients"})
+		return
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
-		"clients": h.dispatcher.ClientIDs(),
+		"clients": clients,
 	})
 }
 
@@ -95,29 +101,33 @@ func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
 
 	// Now we will do the actual validation
 	log.Printf("[register] this agent with uuid %s", body.UUID)
-	valid_req := HandleAgentAuth(body.UUID, body.FingerPrint, body.TimeStamp, body.Signature)
-	if !valid_req {
+	if !service.ValidateAgentRegistration(body.UUID, body.FingerPrint, body.TimeStamp, body.Signature) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{
 			"error": "invalid request",
 		})
 		return
 	}
-	client := realtime.NewClient(body.UUID, body.FingerPrint, body.Hostname)
-	h.dispatcher.RegisterClient(client)
+
+	sessionToken, err := service.NewSessionToken()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session token"})
+		return
+	}
+
+	client := &domain.ClientModel{
+		ID:             body.UUID,
+		Fingerprint:    body.FingerPrint,
+		HostName:       body.Hostname,
+		SessionToken:   sessionToken,
+		TokenExpiresAt: repository.SessionExpiry(24),
+	}
+	if err := h.clientRepo.UpsertRegistration(ctx.Request.Context(), client); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to persist client"})
+		return
+	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"session_token": body.UUID,
+		"session_token": sessionToken,
 		"ws_url":        "",
 	})
-}
-
-func HandleAgentAuth(uuid string, fingerprint string, timestamp string, signature string) bool {
-	// Lets create the same mac and validate that it came from our same binary
-	mac := hmac.New(sha256.New, []byte(AgentSecret))
-	mac.Write([]byte(uuid + "|" + fingerprint + "|" + timestamp))
-	expected := hex.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(expected), []byte(signature)) {
-		return false
-	}
-	return true
 }

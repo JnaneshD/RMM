@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 
+	"example.com/test/internal/repository"
 	"example.com/test/internal/server/api"
 	"example.com/test/internal/server/realtime"
 	"example.com/test/internal/server/service"
-	"example.com/test/internal/server/store/memory"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -24,11 +25,24 @@ func main() {
 		Compress:   true,
 	})
 
+	// Handle DB
+	ctx := context.Background()
+	dbPool, err := repository.NewPool(ctx)
+	if err != nil {
+		log.Fatalf("Failed to connect to Supabase : %v", err)
+	}
+	defer dbPool.Close()
+
+	// Create Repos
+
+	clientRepo := repository.NewClientRepository(dbPool)
+	jobrepo := repository.NewJobRepository(dbPool)
+	sessionRepo := repository.NewSessionRepository(dbPool)
+
 	hub := realtime.NewHub()
-	store := memory.NewJobStore()
-	dispatcher := service.NewDispatcher(hub, store)
-	httpHandler := api.NewHTTPHandler(dispatcher)
-	socketHandler := api.NewSocketHandler(dispatcher, log.Default())
+	dispatcher := service.NewDispatcher(hub, jobrepo)
+	httpHandler := api.NewHTTPHandler(dispatcher, clientRepo)
+	socketHandler := api.NewSocketHandler(dispatcher, clientRepo, sessionRepo, log.Default())
 
 	go hub.Run()
 	defer cleanup(hub)

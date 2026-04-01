@@ -13,6 +13,11 @@ type Client struct {
 	HostName    string
 }
 
+type ClientResponse struct {
+	ID       string
+	HostName string
+}
+
 func NewClient(clientID string, fingerprint string, hostname string) *Client {
 	return &Client{
 		ID:          clientID,

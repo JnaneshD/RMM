@@ -1,7 +1,6 @@
 package realtime
 
 import (
-	"fmt"
 	"log"
 	"sync"
 )
@@ -63,9 +62,19 @@ func (h *Hub) Unregister(client *Client) {
 func (h *Hub) GetClient(id string) (*Client, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	fmt.Println(h.clients)
 	client, exists := h.clients[id]
 	return client, exists
+}
+
+func (h *Hub) GetAllClients() []ClientResponse {
+	cls := make([]ClientResponse, 0)
+	for _, i := range h.clients {
+		cls = append(cls, ClientResponse{
+			ID:       i.ID,
+			HostName: i.HostName,
+		})
+	}
+	return cls
 }
 
 func (h *Hub) ClientIDs() []string {

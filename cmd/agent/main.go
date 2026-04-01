@@ -23,7 +23,7 @@ const (
 func main() {
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Fatalf("get hostname: %w", err)
+		log.Fatalf("get hostname: %v", err)
 	}
 	log.SetOutput(&lumberjack.Logger{
 		Filename:   "clientSide.log",
