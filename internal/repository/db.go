@@ -3,13 +3,14 @@ package repository
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func NewPool(ctx context.Context) (*pgxpool.Pool, error) {
-	databaseURL := "postgresql://postgres:chP3SHZvxypexl4Z@db.tbenvzdhptrqzimokvsm.supabase.co:5432/postgres" //os.Getenv("DATABASE_URL")
+	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is not set")
 	}
