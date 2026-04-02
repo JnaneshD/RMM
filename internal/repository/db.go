@@ -11,6 +11,7 @@ import (
 
 func NewPool(ctx context.Context) (*pgxpool.Pool, error) {
 	databaseURL := os.Getenv("DATABASE_URL")
+	print(databaseURL)
 	if databaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is not set")
 	}

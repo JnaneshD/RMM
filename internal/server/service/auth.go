@@ -10,9 +10,9 @@ import (
 
 const AgentSecret = "replace-with-a-long-random-secret-string"
 
-func ValidateAgentRegistration(uuid, fingerprint, timestamp, signature string) bool {
+func ValidateAgentRegistration(uuid, fingerprint, signature string) bool {
 	mac := hmac.New(sha256.New, []byte(AgentSecret))
-	mac.Write([]byte(uuid + "|" + fingerprint + "|" + timestamp))
+	mac.Write([]byte(uuid + "|" + fingerprint))
 	expected := hex.EncodeToString(mac.Sum(nil))
 	return hmac.Equal([]byte(expected), []byte(signature))
 }

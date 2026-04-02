@@ -18,6 +18,7 @@ type ClientSummary struct {
 	Fingerprint string     `json:"fingerprint"`
 	CreatedAt   time.Time  `json:"created_at"`
 	LastSeenAt  *time.Time `json:"last_seen_at"`
+	Online      bool       `json:"online"`
 }
 
 type ClientSession struct {

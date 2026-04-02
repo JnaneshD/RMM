@@ -73,8 +73,7 @@ func (h *SocketHandler) HandleServerSideSocket(ctx *gin.Context) {
 		conn.Close()
 		return
 	}
-	client := realtime.NewClient(authenticatedClient.ID, authenticatedClient.Fingerprint, authenticatedClient.HostName)
-	client.UpdateClient(conn)
+	client := realtime.NewClient(authenticatedClient.ID, conn)
 	h.dispatcher.RegisterClient(client)
 	if err := h.clientRepo.TouchLastSeen(context.Background(), clientID); err != nil {
 		h.logger.Printf("touch last_seen for client %s: %v", clientID, err)
@@ -104,7 +103,7 @@ func (h *SocketHandler) HandleServerSideSocket(ctx *gin.Context) {
 	<-done
 }
 
-func (h *SocketHandler) sendCommandsToClient(client *realtime.Client, conn *websocket.Conn, done chan bool) {
+func (h *SocketHandler) sendCommandsToClient(client *realtime.ActiveClient, conn *websocket.Conn, done chan bool) {
 	ticker := time.NewTicker(heartbeat.PingInterval)
 	defer ticker.Stop()
 	defer h.logger.Println("Stopping writes")

@@ -28,28 +28,18 @@ func NewDispatcher(hub *realtime.Hub,
 	}
 }
 
-func (d *Dispatcher) RegisterClient(client *realtime.Client) {
+func (d *Dispatcher) RegisterClient(client *realtime.ActiveClient) {
 	d.hub.Register(client)
 }
 
-func (d *Dispatcher) UnregisterClient(client *realtime.Client) {
+func (d *Dispatcher) UnregisterClient(client *realtime.ActiveClient) {
 	d.hub.Unregister(client)
 }
 
-func (d *Dispatcher) GetClientByID(client_id string) *realtime.Client {
-	cl, exists := d.hub.GetClient(client_id)
-	if !exists {
-		return nil
-	}
-	return cl
-}
+func (d *Dispatcher) IsClientExists(clientId string) bool {
+	_, exists := d.hub.GetClient(clientId)
+	return exists
 
-func (d *Dispatcher) ClientIDs() []string {
-	return d.hub.ClientIDs()
-}
-
-func (d *Dispatcher) GetClients() []realtime.ClientResponse {
-	return d.hub.GetAllClients()
 }
 
 func (d *Dispatcher) JobsSnapshot() map[string][]domain.Job {

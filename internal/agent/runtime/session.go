@@ -74,9 +74,9 @@ func BuildWSDialer() *websocket.Dialer {
 	}
 }
 
-func sign(agentUUID, hwFingerprint, timestamp string) string {
+func sign(agentUUID, hwFingerprint string) string {
 	mac := hmac.New(sha256.New, []byte(AgentSecret))
-	mac.Write([]byte(agentUUID + "|" + hwFingerprint + "|" + timestamp))
+	mac.Write([]byte(agentUUID + "|" + hwFingerprint))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
@@ -87,12 +87,10 @@ func sign(agentUUID, hwFingerprint, timestamp string) string {
 
 func Register(client *http.Client, agentUUID string, fingerPrint string, hostname string) (string, error) {
 
-	timestamp := time.Now().UTC().Format(time.RFC3339)
-	signature := sign(agentUUID, fingerPrint, timestamp)
+	signature := sign(agentUUID, fingerPrint)
 	payload, err := json.Marshal(map[string]string{
 		"uuid":        agentUUID,
 		"fingerprint": fingerPrint,
-		"timestamp":   timestamp,
 		"signature":   signature,
 		"hostname":    hostname,
 	})

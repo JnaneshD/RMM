@@ -5,28 +5,15 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type Client struct {
-	ID          string
-	conn        *websocket.Conn
-	Send        chan domain.Job
-	Fingerprint string
-	HostName    string
+type ActiveClient struct {
+	ID   string
+	conn *websocket.Conn
+	Send chan domain.Job
 }
 
-type ClientResponse struct {
-	ID       string
-	HostName string
-}
-
-func NewClient(clientID string, fingerprint string, hostname string) *Client {
-	return &Client{
-		ID:          clientID,
-		Fingerprint: fingerprint,
-		HostName:    hostname,
+func NewClient(clientID string, conn *websocket.Conn) *ActiveClient {
+	return &ActiveClient{
+		ID:   clientID,
+		conn: conn,
 	}
-}
-
-func (cl *Client) UpdateClient(conn *websocket.Conn) {
-	cl.conn = conn
-	cl.Send = make(chan domain.Job)
 }

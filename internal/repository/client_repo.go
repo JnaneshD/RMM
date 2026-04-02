@@ -99,6 +99,8 @@ func (r *ClientRepository) ListClients(ctx context.Context) ([]domain.ClientSumm
 	var clients []domain.ClientSummary
 	for rows.Next() {
 		var client domain.ClientSummary
+		client.Online = false
+
 		if err := rows.Scan(
 			&client.ID,
 			&client.HostName,

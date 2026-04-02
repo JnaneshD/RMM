@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"time"
 
 	"example.com/test/internal/domain"
 	"example.com/test/internal/repository"
@@ -26,6 +25,11 @@ func NewHTTPHandler(dispatcher *service.Dispatcher, clientRepo *repository.Clien
 
 func (h *HTTPHandler) ReturnClients(ctx *gin.Context) {
 	clients, err := h.clientRepo.ListClients(ctx.Request.Context())
+	for i, cl := range clients {
+		if h.dispatcher.IsClientExists(cl.ID) {
+			clients[i].Online = true
+		}
+	}
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch clients"})
 		return
@@ -88,20 +92,20 @@ func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
 	}
 
 	// Check the timestamp
-	t, err := time.Parse(time.RFC3339, body.TimeStamp)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid timestamp"})
-		return
-	}
-	if time.Since(t) > 5*time.Minute {
-		log.Printf("[register] stale request from uuid=%s", body.UUID)
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "request expired"})
-		return
-	}
+	// t, err := time.Parse(time.RFC3339, body.TimeStamp)
+	// if err != nil {
+	// 	ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid timestamp"})
+	// 	return
+	// }
+	// if time.Since(t) > 5*time.Minute {
+	// 	log.Printf("[register] stale request from uuid=%s", body.UUID)
+	// 	ctx.JSON(http.StatusUnauthorized, gin.H{"error": "request expired"})
+	// 	return
+	// }
 
 	// Now we will do the actual validation
 	log.Printf("[register] this agent with uuid %s", body.UUID)
-	if !service.ValidateAgentRegistration(body.UUID, body.FingerPrint, body.TimeStamp, body.Signature) {
+	if !service.ValidateAgentRegistration(body.UUID, body.FingerPrint, body.Signature) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{
 			"error": "invalid request",
 		})
