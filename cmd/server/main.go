@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	"example.com/test/internal/repository"
 	"example.com/test/internal/server/api"
@@ -26,12 +27,13 @@ func main() {
 	})
 
 	// Handle DB
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	dbPool, err := repository.NewPool(ctx)
 	if err != nil {
 		log.Fatalf("Failed to connect to Supabase : %v", err)
 	}
 	defer dbPool.Close()
+	defer cancel()
 
 	// Create Repos
 

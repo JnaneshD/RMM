@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"runtime"
 	"strings"
 	"time"
 
@@ -93,6 +94,7 @@ func Register(client *http.Client, agentUUID string, fingerPrint string, hostnam
 		"fingerprint": fingerPrint,
 		"signature":   signature,
 		"hostname":    hostname,
+		"os":          runtime.GOOS,
 	})
 	if err != nil {
 		return "", fmt.Errorf("marshal payload: %w", err)

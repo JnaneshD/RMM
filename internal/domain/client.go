@@ -10,6 +10,7 @@ type ClientModel struct {
 	TokenExpiresAt *time.Time `db:"token_expires_at"`
 	CreatedAt      time.Time  `db:"created_at"`
 	LastSeenAt     *time.Time `db:"last_seen_at"`
+	OS             string     `db:"os"`
 }
 
 type ClientSummary struct {
@@ -19,6 +20,7 @@ type ClientSummary struct {
 	CreatedAt   time.Time  `json:"created_at"`
 	LastSeenAt  *time.Time `json:"last_seen_at"`
 	Online      bool       `json:"online"`
+	OS          string     `json:"operating_system"`
 }
 
 type ClientSession struct {

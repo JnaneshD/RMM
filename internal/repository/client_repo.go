@@ -22,16 +22,17 @@ func NewClientRepository(db *pgxpool.Pool) *ClientRepository {
 
 func (r *ClientRepository) UpsertRegistration(ctx context.Context, c *domain.ClientModel) error {
 	_, err := r.db.Exec(ctx,
-		`INSERT INTO clients (id, fingerprint, hostname, session_token, token_expires_at, last_seen_at)
-		 VALUES ($1, $2, $3, $4, $5, NOW())
+		`INSERT INTO clients (id, fingerprint, hostname, session_token, token_expires_at, last_seen_at, os)
+		 VALUES ($1, $2, $3, $4, $5, NOW(), $6)
 		 ON CONFLICT (id)
 		 DO UPDATE SET
 		     fingerprint = EXCLUDED.fingerprint,
 		     hostname = EXCLUDED.hostname,
 		     session_token = EXCLUDED.session_token,
 		     token_expires_at = EXCLUDED.token_expires_at,
-		     last_seen_at = NOW()`,
-		c.ID, c.Fingerprint, c.HostName, c.SessionToken, c.TokenExpiresAt,
+		     last_seen_at = NOW(),
+			 os = EXCLUDED.os`,
+		c.ID, c.Fingerprint, c.HostName, c.SessionToken, c.TokenExpiresAt, c.OS,
 	)
 	return err
 }
@@ -87,7 +88,7 @@ func (r *ClientRepository) RevokeSession(ctx context.Context, clientID string) e
 
 func (r *ClientRepository) ListClients(ctx context.Context) ([]domain.ClientSummary, error) {
 	rows, err := r.db.Query(ctx,
-		`SELECT id, hostname, fingerprint, created_at, last_seen_at
+		`SELECT id, hostname, fingerprint, created_at, last_seen_at, os
 		 FROM clients
 		 ORDER BY created_at DESC, id ASC`,
 	)
@@ -107,6 +108,7 @@ func (r *ClientRepository) ListClients(ctx context.Context) ([]domain.ClientSumm
 			&client.Fingerprint,
 			&client.CreatedAt,
 			&client.LastSeenAt,
+			&client.OS,
 		); err != nil {
 			return nil, err
 		}

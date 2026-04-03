@@ -83,6 +83,7 @@ func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
 		TimeStamp   string `json:"timestamp"`
 		Signature   string `json:"signature"`
 		Hostname    string `json:"hostname"`
+		OS          string `json:"os"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil || body.UUID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{
@@ -124,6 +125,7 @@ func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
 		HostName:       body.Hostname,
 		SessionToken:   sessionToken,
 		TokenExpiresAt: repository.SessionExpiry(24),
+		OS:             body.OS,
 	}
 	if err := h.clientRepo.UpsertRegistration(ctx.Request.Context(), client); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to persist client"})
