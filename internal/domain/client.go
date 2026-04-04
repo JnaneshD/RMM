@@ -14,13 +14,12 @@ type ClientModel struct {
 }
 
 type ClientSummary struct {
-	ID          string     `json:"id"`
-	HostName    string     `json:"hostname"`
-	Fingerprint string     `json:"fingerprint"`
-	CreatedAt   time.Time  `json:"created_at"`
-	LastSeenAt  *time.Time `json:"last_seen_at"`
-	Online      bool       `json:"online"`
-	OS          string     `json:"operating_system"`
+	ID         string     `json:"id"`
+	HostName   string     `json:"hostname"`
+	CreatedAt  time.Time  `json:"created_at"`
+	LastSeenAt *time.Time `json:"last_seen_at"`
+	Online     bool       `json:"online"`
+	OS         string     `json:"operating_system"`
 }
 
 type ClientSession struct {

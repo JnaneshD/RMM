@@ -88,7 +88,7 @@ func (r *ClientRepository) RevokeSession(ctx context.Context, clientID string) e
 
 func (r *ClientRepository) ListClients(ctx context.Context) ([]domain.ClientSummary, error) {
 	rows, err := r.db.Query(ctx,
-		`SELECT id, hostname, fingerprint, created_at, last_seen_at, os
+		`SELECT id, hostname, created_at, last_seen_at, os
 		 FROM clients
 		 ORDER BY created_at DESC, id ASC`,
 	)
@@ -105,7 +105,6 @@ func (r *ClientRepository) ListClients(ctx context.Context) ([]domain.ClientSumm
 		if err := rows.Scan(
 			&client.ID,
 			&client.HostName,
-			&client.Fingerprint,
 			&client.CreatedAt,
 			&client.LastSeenAt,
 			&client.OS,

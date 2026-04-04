@@ -31,6 +31,7 @@ func (h *HTTPHandler) ReturnClients(ctx *gin.Context) {
 		}
 	}
 	if err != nil {
+		log.Printf("API Response error for list clients: %v", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch clients"})
 		return
 	}
