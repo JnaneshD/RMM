@@ -15,5 +15,6 @@ func NewClient(clientID string, conn *websocket.Conn) *ActiveClient {
 	return &ActiveClient{
 		ID:   clientID,
 		conn: conn,
+		Send: make(chan domain.Job),
 	}
 }

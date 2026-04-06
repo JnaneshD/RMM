@@ -35,13 +35,19 @@ func (h *HTTPHandler) ReturnClients(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch clients"})
 		return
 	}
-
+	if clients == nil {
+		clients = []domain.ClientSummary{}
+	}
 	ctx.JSON(http.StatusOK, gin.H{
 		"clients": clients,
 	})
 }
 
 func (h *HTTPHandler) ReturnJobs(ctx *gin.Context) {
+	jobs := h.dispatcher.JobsSnapshot()
+	if jobs == nil {
+		jobs = map[string][]domain.Job{}
+	}
 	ctx.JSON(http.StatusOK, gin.H{
 		"jobs": h.dispatcher.JobsSnapshot(),
 	})

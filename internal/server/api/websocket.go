@@ -104,6 +104,7 @@ func (h *SocketHandler) HandleServerSideSocket(ctx *gin.Context) {
 }
 
 func (h *SocketHandler) sendCommandsToClient(client *realtime.ActiveClient, conn *websocket.Conn, done chan bool) {
+	h.logger.Println("Ready to write commands to channel")
 	ticker := time.NewTicker(heartbeat.PingInterval)
 	defer ticker.Stop()
 	defer h.logger.Println("Stopping writes")
