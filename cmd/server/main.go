@@ -5,13 +5,24 @@ import (
 	"log"
 	"time"
 
+	_ "example.com/test/docs/openapi"
 	"example.com/test/internal/repository"
 	"example.com/test/internal/server/api"
 	"example.com/test/internal/server/realtime"
 	"example.com/test/internal/server/service"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+//go:generate go run github.com/swaggo/swag/cmd/swag@v1.16.4 init -g cmd/server/main.go -d ../.. -o ../../docs/openapi --parseInternal
+
+// @title Gin Agent Control API
+// @version 1.0
+// @description HTTPS and websocket-backed API for agent registration, client presence, and job dispatch.
+// @BasePath /
+// @schemes https
 
 func cleanup(hub *realtime.Hub) {
 	hub.Stop()
@@ -56,6 +67,7 @@ func main() {
 	router.GET("/jobs", httpHandler.ReturnJobs)
 	router.POST("/register", httpHandler.HandleRegistration)
 	router.DELETE("/delete/jobs", httpHandler.HandleDeleteJobsOfClient)
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	if err := router.RunTLS(":8080", "cert.pem", "key.pem"); err != nil {
 		log.Fatalf("failed to start TLS server: %v", err)
 	}

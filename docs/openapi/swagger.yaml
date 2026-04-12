@@ -1,0 +1,257 @@
+basePath: /
+definitions:
+  api.ClientsResponse:
+    properties:
+      clients:
+        items:
+          $ref: '#/definitions/domain.ClientSummary'
+        type: array
+    type: object
+  api.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  api.JobsResponse:
+    properties:
+      jobs:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/domain.Job'
+          type: array
+        type: object
+    type: object
+  api.PushMessageRequest:
+    properties:
+      command:
+        type: string
+    required:
+    - command
+    type: object
+  api.PushMessageResponse:
+    properties:
+      job:
+        $ref: '#/definitions/domain.Job'
+      status:
+        type: string
+    type: object
+  api.RegisterRequest:
+    properties:
+      fingerprint:
+        type: string
+      hostname:
+        type: string
+      os:
+        type: string
+      signature:
+        type: string
+      timestamp:
+        type: string
+      uuid:
+        type: string
+    required:
+    - fingerprint
+    - signature
+    - uuid
+    type: object
+  api.RegisterResponse:
+    properties:
+      session_token:
+        type: string
+      ws_url:
+        type: string
+    type: object
+  domain.ClientSummary:
+    properties:
+      created_at:
+        type: string
+      hostname:
+        type: string
+      id:
+        type: string
+      last_seen_at:
+        type: string
+      online:
+        type: boolean
+      operating_system:
+        type: string
+    type: object
+  domain.DeleteJobResponse:
+    properties:
+      errorCode:
+        type: string
+      errorMsg:
+        type: string
+    type: object
+  domain.Job:
+    properties:
+      client_id:
+        type: string
+      command:
+        type: string
+      id:
+        type: integer
+      output:
+        type: string
+      status:
+        $ref: '#/definitions/domain.JobStatus'
+    type: object
+  domain.JobStatus:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    type: integer
+    x-enum-varnames:
+    - WAIT
+    - RUNNING
+    - FINISHED
+    - FAILED
+info:
+  contact: {}
+  description: HTTPS and websocket-backed API for agent registration, client presence,
+    and job dispatch.
+  title: Gin Agent Control API
+  version: "1.0"
+paths:
+  /clients:
+    get:
+      description: Returns all known clients and marks whether each one is currently
+        online.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ClientsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: List registered clients
+      tags:
+      - clients
+  /delete/jobs:
+    delete:
+      description: Removes every persisted job belonging to the supplied client ID.
+      parameters:
+      - description: Client ID
+        in: query
+        name: clientId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.DeleteJobResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.DeleteJobResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.DeleteJobResponse'
+      summary: Delete all jobs for a client
+      tags:
+      - jobs
+  /jobs:
+    get:
+      description: Returns the current persisted job snapshot grouped by client ID.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.JobsResponse'
+      summary: List jobs grouped by client
+      tags:
+      - jobs
+  /push/{id}:
+    post:
+      consumes:
+      - application/json
+      description: Queues a command for the target online client and returns the created
+        job.
+      parameters:
+      - description: Client ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Command payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/api.PushMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.PushMessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "504":
+          description: Gateway Timeout
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Dispatch a command to a client
+      tags:
+      - jobs
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Validates a client registration request, persists the client, and
+        returns a session token used for websocket authentication.
+      parameters:
+      - description: Client registration payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/api.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.RegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Register or refresh a client session
+      tags:
+      - auth
+schemes:
+- https
+swagger: "2.0"

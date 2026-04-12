@@ -26,6 +26,14 @@ func NewHTTPHandler(dispatcher *service.Dispatcher, clientRepo *repository.Clien
 	}
 }
 
+// ReturnClients godoc
+// @Summary List registered clients
+// @Description Returns all known clients and marks whether each one is currently online.
+// @Tags clients
+// @Produce json
+// @Success 200 {object} ClientsResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /clients [get]
 func (h *HTTPHandler) ReturnClients(ctx *gin.Context) {
 	clients, err := h.clientRepo.ListClients(ctx.Request.Context())
 	for i, cl := range clients {
@@ -46,22 +54,41 @@ func (h *HTTPHandler) ReturnClients(ctx *gin.Context) {
 	})
 }
 
+// ReturnJobs godoc
+// @Summary List jobs grouped by client
+// @Description Returns the current persisted job snapshot grouped by client ID.
+// @Tags jobs
+// @Produce json
+// @Success 200 {object} JobsResponse
+// @Router /jobs [get]
 func (h *HTTPHandler) ReturnJobs(ctx *gin.Context) {
 	jobs := h.dispatcher.JobsSnapshot()
 	if jobs == nil {
 		jobs = map[string][]domain.Job{}
 	}
 	ctx.JSON(http.StatusOK, gin.H{
-		"jobs": h.dispatcher.JobsSnapshot(),
+		"jobs": jobs,
 	})
 }
 
+// HandlePushMessage godoc
+// @Summary Dispatch a command to a client
+// @Description Queues a command for the target online client and returns the created job.
+// @Tags jobs
+// @Accept json
+// @Produce json
+// @Param id path string true "Client ID"
+// @Param payload body PushMessageRequest true "Command payload"
+// @Success 200 {object} PushMessageResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 504 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /push/{id} [post]
 func (h *HTTPHandler) HandlePushMessage(ctx *gin.Context) {
 	id := ctx.Param("id")
 
-	var payload struct {
-		Command string `json:"command"`
-	}
+	var payload PushMessageRequest
 	if err := ctx.BindJSON(&payload); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -80,21 +107,26 @@ func (h *HTTPHandler) HandlePushMessage(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"status": "Sent to agent",
-		"job":    job,
+	ctx.JSON(http.StatusOK, PushMessageResponse{
+		Status: "Sent to agent",
+		Job:    job,
 	})
 }
 
+// HandleRegistration godoc
+// @Summary Register or refresh a client session
+// @Description Validates a client registration request, persists the client, and returns a session token used for websocket authentication.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param payload body RegisterRequest true "Client registration payload"
+// @Success 200 {object} RegisterResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /register [post]
 func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
-	var body struct {
-		UUID        string `json:"uuid"`
-		FingerPrint string `json:"fingerprint"`
-		TimeStamp   string `json:"timestamp"`
-		Signature   string `json:"signature"`
-		Hostname    string `json:"hostname"`
-		OS          string `json:"os"`
-	}
+	var body RegisterRequest
 	if err := ctx.ShouldBindJSON(&body); err != nil || body.UUID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid Payload",
@@ -142,12 +174,22 @@ func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"session_token": sessionToken,
-		"ws_url":        "",
+	ctx.JSON(http.StatusOK, RegisterResponse{
+		SessionToken: sessionToken,
+		WSURL:        "",
 	})
 }
 
+// HandleDeleteJobsOfClient godoc
+// @Summary Delete all jobs for a client
+// @Description Removes every persisted job belonging to the supplied client ID.
+// @Tags jobs
+// @Produce json
+// @Param clientId query string true "Client ID"
+// @Success 200 {object} domain.DeleteJobResponse
+// @Failure 400 {object} domain.DeleteJobResponse
+// @Failure 500 {object} domain.DeleteJobResponse
+// @Router /delete/jobs [delete]
 func (h *HTTPHandler) HandleDeleteJobsOfClient(ctx *gin.Context) {
 	clientId := ctx.Query("clientId")
 	var resp domain.DeleteJobResponse
