@@ -34,6 +34,7 @@ func main() {
 		MaxAge:     28,
 		Compress:   true,
 	})
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	// Handle DB
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
