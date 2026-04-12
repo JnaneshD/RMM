@@ -43,7 +43,7 @@ func main() {
 
 	hub := realtime.NewHub()
 	dispatcher := service.NewDispatcher(hub, jobrepo)
-	httpHandler := api.NewHTTPHandler(dispatcher, clientRepo)
+	httpHandler := api.NewHTTPHandler(dispatcher, clientRepo, jobrepo)
 	socketHandler := api.NewSocketHandler(dispatcher, clientRepo, sessionRepo, log.Default())
 
 	go hub.Run()
@@ -55,6 +55,7 @@ func main() {
 	router.GET("/clients", httpHandler.ReturnClients)
 	router.GET("/jobs", httpHandler.ReturnJobs)
 	router.POST("/register", httpHandler.HandleRegistration)
+	router.DELETE("/delete/jobs", httpHandler.HandleDeleteJobsOfClient)
 	if err := router.RunTLS(":8080", "cert.pem", "key.pem"); err != nil {
 		log.Fatalf("failed to start TLS server: %v", err)
 	}

@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"sort"
 
 	"example.com/test/internal/domain"
@@ -126,4 +128,34 @@ func parseJobStatus(status string) domain.JobStatus {
 	default:
 		return domain.WAIT
 	}
+}
+
+func (r *JobRepository) DeleteAllJobsOfClient(ctx context.Context, clientId string) error {
+
+	tx, err := r.db.Begin(ctx)
+
+	if err != nil {
+		log.Println("Unable to open txn")
+		return fmt.Errorf("Begin tx : %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	tag, err := tx.Exec(ctx, "DELETE FROM Jobs WHERE client_id = $1", clientId)
+	if err != nil {
+		return fmt.Errorf("Delete jobs failed : %w", err)
+	}
+
+	log.Println("Deleted rows of client", clientId, tag.RowsAffected())
+	err = tx.Commit(ctx)
+
+	if err != nil {
+		return fmt.Errorf("Commit tx : %w", err)
+	}
+
+	return nil
+
 }

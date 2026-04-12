@@ -31,3 +31,8 @@ func (s JobStatus) String() string {
 		return "unknown"
 	}
 }
+
+type DeleteJobResponse struct {
+	ErrorCode string `json:"errorCode"`
+	ErrorMsg  string `json:"errorMsg"`
+}

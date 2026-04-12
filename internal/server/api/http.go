@@ -14,12 +14,15 @@ import (
 type HTTPHandler struct {
 	dispatcher *service.Dispatcher
 	clientRepo *repository.ClientRepository
+	jobrepo    *repository.JobRepository
 }
 
-func NewHTTPHandler(dispatcher *service.Dispatcher, clientRepo *repository.ClientRepository) *HTTPHandler {
+func NewHTTPHandler(dispatcher *service.Dispatcher, clientRepo *repository.ClientRepository,
+	jobrepo *repository.JobRepository) *HTTPHandler {
 	return &HTTPHandler{
 		dispatcher: dispatcher,
 		clientRepo: clientRepo,
+		jobrepo:    jobrepo,
 	}
 }
 
@@ -143,4 +146,26 @@ func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
 		"session_token": sessionToken,
 		"ws_url":        "",
 	})
+}
+
+func (h *HTTPHandler) HandleDeleteJobsOfClient(ctx *gin.Context) {
+	clientId := ctx.Query("clientId")
+	var resp domain.DeleteJobResponse
+	if clientId == "" {
+		resp.ErrorCode = "-1"
+		resp.ErrorMsg = "Invalid Client Id"
+		ctx.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	err := h.jobrepo.DeleteAllJobsOfClient(ctx, clientId)
+	if err != nil {
+		resp.ErrorCode = "-2"
+		resp.ErrorMsg = err.Error()
+		ctx.JSON(http.StatusInternalServerError, resp)
+		return
+	}
+	resp.ErrorCode = "0"
+	resp.ErrorMsg = ""
+	ctx.JSON(http.StatusOK, resp)
 }
