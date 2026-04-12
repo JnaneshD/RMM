@@ -20,7 +20,7 @@ func NewClientRepository(db *pgxpool.Pool) *ClientRepository {
 	}
 }
 
-func (r *ClientRepository) UpsertRegistration(ctx context.Context, c *domain.ClientModel) error {
+func (r *ClientRepository) UpsertRegistration(ctx context.Context, c *domain.Client) error {
 	_, err := r.db.Exec(ctx,
 		`INSERT INTO clients (id, fingerprint, hostname, session_token, token_expires_at, last_seen_at, os)
 		 VALUES ($1, $2, $3, $4, $5, NOW(), $6)
@@ -37,8 +37,8 @@ func (r *ClientRepository) UpsertRegistration(ctx context.Context, c *domain.Cli
 	return err
 }
 
-func (r *ClientRepository) AuthenticateSession(ctx context.Context, clientID, token string) (*domain.ClientModel, error) {
-	var client domain.ClientModel
+func (r *ClientRepository) AuthenticateSession(ctx context.Context, clientID, token string) (*domain.Client, error) {
+	var client domain.Client
 	err := r.db.QueryRow(ctx,
 		`SELECT id, fingerprint, hostname, session_token, token_expires_at, created_at, last_seen_at
 		 FROM clients

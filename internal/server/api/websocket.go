@@ -45,20 +45,18 @@ func (h *SocketHandler) HandleServerSideSocket(ctx *gin.Context) {
 	clientID := ctx.Param("id")
 	token := ctx.Query("token")
 	if token == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid Token",
-		})
+		writeError(ctx, http.StatusBadRequest, "Invalid Token")
 		return
 	}
 
 	authenticatedClient, err := h.clientRepo.AuthenticateSession(ctx.Request.Context(), clientID, token)
 	if err != nil {
 		h.logger.Printf("websocket auth lookup failed for client %s: %v", clientID, err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "authentication failed"})
+		writeError(ctx, http.StatusInternalServerError, "authentication failed")
 		return
 	}
 	if authenticatedClient == nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid client credentials"})
+		writeError(ctx, http.StatusUnauthorized, "invalid client credentials")
 		return
 	}
 

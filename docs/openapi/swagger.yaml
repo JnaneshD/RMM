@@ -7,6 +7,13 @@ definitions:
           $ref: '#/definitions/domain.ClientSummary'
         type: array
     type: object
+  api.DeleteJobsResponse:
+    properties:
+      errorCode:
+        type: string
+      errorMsg:
+        type: string
+    type: object
   api.ErrorResponse:
     properties:
       error:
@@ -76,13 +83,6 @@ definitions:
       operating_system:
         type: string
     type: object
-  domain.DeleteJobResponse:
-    properties:
-      errorCode:
-        type: string
-      errorMsg:
-        type: string
-    type: object
   domain.Job:
     properties:
       client_id:
@@ -148,15 +148,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/domain.DeleteJobResponse'
+            $ref: '#/definitions/api.DeleteJobsResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/domain.DeleteJobResponse'
+            $ref: '#/definitions/api.DeleteJobsResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/domain.DeleteJobResponse'
+            $ref: '#/definitions/api.DeleteJobsResponse'
       summary: Delete all jobs for a client
       tags:
       - jobs

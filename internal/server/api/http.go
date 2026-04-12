@@ -36,22 +36,21 @@ func NewHTTPHandler(dispatcher *service.Dispatcher, clientRepo *repository.Clien
 // @Router /clients [get]
 func (h *HTTPHandler) ReturnClients(ctx *gin.Context) {
 	clients, err := h.clientRepo.ListClients(ctx.Request.Context())
+	if err != nil {
+		log.Printf("API Response error for list clients: %v", err)
+		writeError(ctx, http.StatusInternalServerError, "failed to fetch clients")
+		return
+	}
+
 	for i, cl := range clients {
 		if h.dispatcher.IsClientExists(cl.ID) {
 			clients[i].Online = true
 		}
 	}
-	if err != nil {
-		log.Printf("API Response error for list clients: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch clients"})
-		return
-	}
 	if clients == nil {
 		clients = []domain.ClientSummary{}
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"clients": clients,
-	})
+	ctx.JSON(http.StatusOK, ClientsResponse{Clients: clients})
 }
 
 // ReturnJobs godoc
@@ -66,9 +65,7 @@ func (h *HTTPHandler) ReturnJobs(ctx *gin.Context) {
 	if jobs == nil {
 		jobs = map[string][]domain.Job{}
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"jobs": jobs,
-	})
+	ctx.JSON(http.StatusOK, JobsResponse{Jobs: jobs})
 }
 
 // HandlePushMessage godoc
@@ -90,7 +87,7 @@ func (h *HTTPHandler) HandlePushMessage(ctx *gin.Context) {
 
 	var payload PushMessageRequest
 	if err := ctx.BindJSON(&payload); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		writeError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -98,11 +95,11 @@ func (h *HTTPHandler) HandlePushMessage(ctx *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrClientNotFound):
-			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			writeError(ctx, http.StatusNotFound, err.Error())
 		case errors.Is(err, service.ErrClientBusy):
-			ctx.JSON(http.StatusGatewayTimeout, gin.H{"error": err.Error()})
+			writeError(ctx, http.StatusGatewayTimeout, err.Error())
 		default:
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			writeError(ctx, http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
@@ -128,9 +125,7 @@ func (h *HTTPHandler) HandlePushMessage(ctx *gin.Context) {
 func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
 	var body RegisterRequest
 	if err := ctx.ShouldBindJSON(&body); err != nil || body.UUID == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid Payload",
-		})
+		writeError(ctx, http.StatusBadRequest, "Invalid Payload")
 		return
 	}
 
@@ -149,19 +144,17 @@ func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
 	// Now we will do the actual validation
 	log.Printf("[register] this agent with uuid %s", body.UUID)
 	if !service.ValidateAgentRegistration(body.UUID, body.FingerPrint, body.Signature) {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": "invalid request",
-		})
+		writeError(ctx, http.StatusUnauthorized, "invalid request")
 		return
 	}
 
 	sessionToken, err := service.NewSessionToken()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session token"})
+		writeError(ctx, http.StatusInternalServerError, "failed to create session token")
 		return
 	}
 
-	client := &domain.ClientModel{
+	client := &domain.Client{
 		ID:             body.UUID,
 		Fingerprint:    body.FingerPrint,
 		HostName:       body.Hostname,
@@ -170,7 +163,7 @@ func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
 		OS:             body.OS,
 	}
 	if err := h.clientRepo.UpsertRegistration(ctx.Request.Context(), client); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to persist client"})
+		writeError(ctx, http.StatusInternalServerError, "failed to persist client")
 		return
 	}
 
@@ -186,13 +179,13 @@ func (h *HTTPHandler) HandleRegistration(ctx *gin.Context) {
 // @Tags jobs
 // @Produce json
 // @Param clientId query string true "Client ID"
-// @Success 200 {object} domain.DeleteJobResponse
-// @Failure 400 {object} domain.DeleteJobResponse
-// @Failure 500 {object} domain.DeleteJobResponse
+// @Success 200 {object} DeleteJobsResponse
+// @Failure 400 {object} DeleteJobsResponse
+// @Failure 500 {object} DeleteJobsResponse
 // @Router /delete/jobs [delete]
 func (h *HTTPHandler) HandleDeleteJobsOfClient(ctx *gin.Context) {
 	clientId := ctx.Query("clientId")
-	var resp domain.DeleteJobResponse
+	var resp DeleteJobsResponse
 	if clientId == "" {
 		resp.ErrorCode = "-1"
 		resp.ErrorMsg = "Invalid Client Id"

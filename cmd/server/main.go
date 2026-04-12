@@ -11,8 +11,6 @@ import (
 	"example.com/test/internal/server/realtime"
 	"example.com/test/internal/server/service"
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -61,13 +59,7 @@ func main() {
 	defer cleanup(hub)
 
 	router := gin.Default()
-	router.GET("/ws/:id", socketHandler.HandleServerSideSocket)
-	router.POST("/push/:id", httpHandler.HandlePushMessage)
-	router.GET("/clients", httpHandler.ReturnClients)
-	router.GET("/jobs", httpHandler.ReturnJobs)
-	router.POST("/register", httpHandler.HandleRegistration)
-	router.DELETE("/delete/jobs", httpHandler.HandleDeleteJobsOfClient)
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	api.RegisterRoutes(router, httpHandler, socketHandler)
 	if err := router.RunTLS(":8080", "cert.pem", "key.pem"); err != nil {
 		log.Fatalf("failed to start TLS server: %v", err)
 	}

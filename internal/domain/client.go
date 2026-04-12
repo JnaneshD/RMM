@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-type ClientModel struct {
+type Client struct {
 	ID             string     `db:"id"`
 	Fingerprint    string     `db:"fingerprint"`
 	HostName       string     `db:"hostname"`

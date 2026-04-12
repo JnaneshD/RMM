@@ -64,19 +64,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/domain.DeleteJobResponse"
+                            "$ref": "#/definitions/api.DeleteJobsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/domain.DeleteJobResponse"
+                            "$ref": "#/definitions/api.DeleteJobsResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/domain.DeleteJobResponse"
+                            "$ref": "#/definitions/api.DeleteJobsResponse"
                         }
                     }
                 }
@@ -232,6 +232,17 @@ const docTemplate = `{
                 }
             }
         },
+        "api.DeleteJobsResponse": {
+            "type": "object",
+            "properties": {
+                "errorCode": {
+                    "type": "string"
+                },
+                "errorMsg": {
+                    "type": "string"
+                }
+            }
+        },
         "api.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -334,17 +345,6 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "operating_system": {
-                    "type": "string"
-                }
-            }
-        },
-        "domain.DeleteJobResponse": {
-            "type": "object",
-            "properties": {
-                "errorCode": {
-                    "type": "string"
-                },
-                "errorMsg": {
                     "type": "string"
                 }
             }
