@@ -56,6 +56,9 @@ func (h *HTTPHandler) ReturnClients(ctx *gin.Context) {
 func (h *HTTPHandler) ReturnClientDetails(ctx *gin.Context) {
 	client_id := ctx.Param("id")
 	client, err := h.clientRepo.GetClientDetails(ctx, client_id)
+	if h.dispatcher.IsClientExists(client_id) {
+		client.Online = true
+	}
 	if err != nil {
 		log.Printf("API Error from DB : %v", err)
 		writeError(ctx, http.StatusInternalServerError, "Failed to fetch client")
