@@ -53,6 +53,18 @@ func (h *HTTPHandler) ReturnClients(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, ClientsResponse{Clients: clients})
 }
 
+func (h *HTTPHandler) ReturnClientDetails(ctx *gin.Context) {
+	client_id := ctx.Param("id")
+	client, err := h.clientRepo.GetClientDetails(ctx, client_id)
+	if err != nil {
+		log.Printf("API Error from DB : %v", err)
+		writeError(ctx, http.StatusInternalServerError, "Failed to fetch client")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, client)
+}
+
 // ReturnJobs godoc
 // @Summary List jobs grouped by client
 // @Description Returns the current persisted job snapshot grouped by client ID.
@@ -61,6 +73,17 @@ func (h *HTTPHandler) ReturnClients(ctx *gin.Context) {
 // @Success 200 {object} JobsResponse
 // @Router /jobs [get]
 func (h *HTTPHandler) ReturnJobs(ctx *gin.Context) {
+	client_id := ctx.Query("clientId")
+
+	if client_id != "" {
+		jobs, err := h.jobrepo.ListByClient(ctx, client_id)
+		if err != nil {
+			writeError(ctx, http.StatusInternalServerError, "Failed to fetch Jobs")
+			return
+		}
+		ctx.JSON(http.StatusOK, jobs)
+		return
+	}
 	jobs := h.dispatcher.JobsSnapshot()
 	if jobs == nil {
 		jobs = map[string][]domain.Job{}

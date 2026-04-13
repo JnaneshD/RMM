@@ -120,6 +120,27 @@ func (r *ClientRepository) ListClients(ctx context.Context) ([]domain.ClientSumm
 	return clients, nil
 }
 
+func (r *ClientRepository) GetClientDetails(ctx context.Context, client_id string) (domain.ClientSummary, error) {
+	var client domain.ClientSummary
+	client.Online = false
+	err := r.db.QueryRow(ctx,
+		`SELECT id,  hostname, created_at, last_seen_at, os
+		FROM clients 
+		WHERE id = $1`, client_id).Scan(
+		&client.ID,
+		&client.HostName,
+		&client.CreatedAt,
+		&client.LastSeenAt,
+		&client.OS,
+	)
+
+	if err != nil {
+		return domain.ClientSummary{}, err
+	}
+
+	return client, nil
+}
+
 func SessionExpiry(hours int) *time.Time {
 	expiresAt := time.Now().UTC().Add(time.Duration(hours) * time.Hour)
 	return &expiresAt

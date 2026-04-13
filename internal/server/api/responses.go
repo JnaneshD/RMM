@@ -28,3 +28,7 @@ type DeleteJobsResponse struct {
 	ErrorCode string `json:"errorCode"`
 	ErrorMsg  string `json:"errorMsg"`
 }
+
+type JobsByClientResponse struct {
+	Jobs []domain.Job
+}

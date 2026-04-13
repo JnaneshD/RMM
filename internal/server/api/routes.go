@@ -11,6 +11,7 @@ func RegisterRoutes(router *gin.Engine, httpHandler *HTTPHandler, socketHandler 
 	router.GET("/ws/:id", socketHandler.HandleServerSideSocket)
 	router.POST("/push/:id", httpHandler.HandlePushMessage)
 	router.GET("/clients", httpHandler.ReturnClients)
+	router.GET("/clients/:id", httpHandler.ReturnClientDetails)
 	router.GET("/jobs", httpHandler.ReturnJobs)
 	router.POST("/register", httpHandler.HandleRegistration)
 	router.DELETE("/delete/jobs", httpHandler.HandleDeleteJobsOfClient)

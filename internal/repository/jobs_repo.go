@@ -115,6 +115,43 @@ func (r *JobRepository) ListAll(ctx context.Context) (map[string][]domain.Job, e
 	return jobsByClient, nil
 }
 
+func (r *JobRepository) ListByClient(ctx context.Context, clientId string) ([]domain.Job, error) {
+	rows, err := r.db.Query(ctx,
+		`SELECT id, client_id, command, status, COALESCE(result,'')
+	FROM jobs
+	WHERE client_id = $1
+	ORDER BY id DESC`, clientId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	var jobs []domain.Job
+
+	for rows.Next() {
+		var (
+			job       domain.Job
+			statusStr string
+		)
+
+		err := rows.Scan(&job.ID, &job.ClientID, &job.Command, &statusStr, &job.Output)
+		if err != nil {
+			return nil, err
+		}
+
+		job.Status = parseJobStatus(statusStr)
+		jobs = append(jobs, job)
+
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+
+	}
+	return jobs, nil
+
+}
+
 func parseJobStatus(status string) domain.JobStatus {
 	switch status {
 	case "pending":

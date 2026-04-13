@@ -23,12 +23,12 @@ func NewJobScheduler(conn *websocket.Conn, executor Executor) *JobScheduler {
 	return &JobScheduler{
 		Jobs:     make([]domain.Job, 0),
 		conn:     conn,
-		send:     make(chan *domain.Job, 10),
+		send:     make(chan *domain.Job, 100),
 		executor: executor,
 	}
 }
 
-func (s *JobScheduler) AddJobImmediate(newJob *domain.Job) {
+func (s *JobScheduler) AddJobImmediate(ctx context.Context, newJob *domain.Job) {
 	s.mu.Lock()
 	s.Jobs = append(s.Jobs, *newJob)
 	s.mu.Unlock()
@@ -37,8 +37,8 @@ func (s *JobScheduler) AddJobImmediate(newJob *domain.Job) {
 
 	select {
 	case s.send <- newJob:
-	default:
-		log.Printf("Send channel is full, dropping result %s", newJob.Command)
+	case <-ctx.Done():
+		log.Printf("scheduler stopped before result could be sent for job %s", newJob.Command)
 	}
 }
 
@@ -55,7 +55,7 @@ func Worker(ctx context.Context, id int, jobQueue <-chan *domain.Job, scheduler 
 				return
 			}
 			log.Printf("Worker %d, executing the job %s", id, job.Command)
-			scheduler.AddJobImmediate(job)
+			scheduler.AddJobImmediate(ctx, job)
 		}
 	}
 }
