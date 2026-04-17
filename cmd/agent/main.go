@@ -44,7 +44,7 @@ func RegisterClient(serverURL string, agentUUID string) (string, error) {
 	return token, nil
 }
 
-func runAgent(serverURL string, token string, agentUUID string) error {
+func runAgent(ctx context.Context, serverURL string, token string, agentUUID string) error {
 	// generate once on first run and persist it.
 
 	// --- Step 2: Connect WebSocket over WSS (cert pinned) ---
@@ -56,36 +56,22 @@ func runAgent(serverURL string, token string, agentUUID string) error {
 	defer conn.Close()
 
 	// --- Step 3: Your existing worker pool + scheduler (unchanged) ---
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(interrupt)
-
 	go func() {
-		sig := <-interrupt
-		log.Printf("[agent] received signal: %v — shutting down cleanly", sig)
+		<-ctx.Done()
+		log.Printf("[agent] context cancelled, shutting down cleanly...")
 
-		// 1. Cancel context — stops workers and ReadSocket
-		cancel()
-
-		// 2. Send proper WS close frame — server sees a clean disconnect
+		// 1. Send proper WS close frame — server sees a clean disconnect
 		closeWS(conn)
 
-		// 3. Close the connection
+		// 2. Close the connection
 		conn.Close()
 	}()
 
 	jobQueue := make(chan *domain.Job, jobQueueSize)
 	scheduler := runtime.NewJobScheduler(conn, runtime.NewExecutor())
-
-	// Graceful shutdown on Ctrl+C
-	go func() {
-		<-interrupt
-		log.Println("[agent] interrupt received, shutting down...")
-		cancel()
-	}()
 
 	// WritePump sends results back to server
 	go scheduler.WritePump()
@@ -112,6 +98,9 @@ func runAgent(serverURL string, token string, agentUUID string) error {
 func main() {
 	serverFlag := flag.String("server", "", "Server URL (e.g. https://localhost:8081)")
 	flag.Parse()
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	if *serverFlag != "" {
 		if err := runtime.SaveServerURL(*serverFlag); err != nil {
@@ -142,6 +131,11 @@ func main() {
 	}
 
 	for {
+		if ctx.Err() != nil {
+			log.Println("[agent] termination requested, exiting safely.")
+			return
+		}
+
 		// 1. Try loading existing token, otherwise register
 		token, err := runtime.LoadAgentToken()
 		if err != nil {
@@ -150,7 +144,13 @@ func main() {
 			if err != nil {
 				log.Printf("[agent] registration failed: %v", err)
 				log.Printf("[agent] retrying in %v...", backoff)
-				time.Sleep(backoff)
+				
+				select {
+				case <-ctx.Done():
+					log.Println("[agent] exiting during registration backoff.")
+					return
+				case <-time.After(backoff):
+				}
 				
 				backoff *= 2
 				if backoff > maxBackoff {
@@ -164,8 +164,13 @@ func main() {
 		}
 
 		// 2. We have a token, start the agent
-		err = runAgent(serverURL, token, agentUUID)
+		err = runAgent(ctx, serverURL, token, agentUUID)
 		log.Printf("[agent] run ended: %v", err)
+
+		if ctx.Err() != nil {
+			log.Println("[agent] termination requested, exiting safely.")
+			return
+		}
 
 		// 3. If unauthorized, clear token and retry without sleeping
 		if errors.Is(err, runtime.ErrUnauthorized) {
@@ -177,7 +182,12 @@ func main() {
 
 		// 4. Sleep and retry connecting
 		log.Printf("[agent] reconnecting in %v...", backoff)
-		time.Sleep(backoff)
+		select {
+		case <-ctx.Done():
+			log.Println("[agent] exiting during connection backoff.")
+			return
+		case <-time.After(backoff):
+		}
 
 		// exponential backoff
 		backoff *= 2
