@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,11 +18,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var ErrUnauthorized = errors.New("unauthorized token")
+
 const (
 	PinnedFingerprint = "C4:20:BE:D3:ED:17:AF:42:43:F8:45:10:F6:58:48:2F:11:B3:68:8E:C7:B6:E7:EB:2C:86:65:F4:02:8E:6A:A6"
 	AgentSecret       = "replace-with-a-long-random-secret-string"
-	ServerHTTPS       = "https://localhost:8080"
-	ServerWSS         = "wss://localhost:8080"
 )
 
 func VerifyFingerprint(cs tls.ConnectionState) error {
@@ -86,7 +87,7 @@ func sign(agentUUID, hwFingerprint string) string {
 // Returns the session token to use for the WS connection.
 // -------------------------------------------------------------------
 
-func Register(client *http.Client, agentUUID string, fingerPrint string, hostname string) (string, error) {
+func Register(serverURL string, client *http.Client, agentUUID string, fingerPrint string, hostname string) (string, error) {
 
 	signature := sign(agentUUID, fingerPrint)
 	payload, err := json.Marshal(map[string]string{
@@ -100,7 +101,8 @@ func Register(client *http.Client, agentUUID string, fingerPrint string, hostnam
 		return "", fmt.Errorf("marshal payload: %w", err)
 	}
 
-	resp, err := client.Post(ServerHTTPS+"/register", "application/json", bytes.NewReader(payload))
+	url := strings.TrimRight(serverURL, "/") + "/register"
+	resp, err := client.Post(url, "application/json", bytes.NewReader(payload))
 	if err != nil {
 		// If fingerprint mismatch, the error surfaces here
 		return "", fmt.Errorf("registration request failed: %w", err)
@@ -130,12 +132,19 @@ func Register(client *http.Client, agentUUID string, fingerPrint string, hostnam
 // WebSocket connection — wss:// with cert pinning + token auth
 // -------------------------------------------------------------------
 
-func ConnectWS(dialer *websocket.Dialer, token string, uuid string) (*websocket.Conn, error) {
-	url := fmt.Sprintf("%s/ws/%s?token=%s", ServerWSS, uuid, token)
+func ConnectWS(serverURL string, dialer *websocket.Dialer, token string, uuid string) (*websocket.Conn, error) {
+	wsURL := strings.Replace(serverURL, "https://", "wss://", 1)
+	wsURL = strings.Replace(wsURL, "http://", "ws://", 1)
+	wsURL = strings.TrimRight(wsURL, "/")
+
+	url := fmt.Sprintf("%s/ws/%s?token=%s", wsURL, uuid, token)
 	log.Printf("[ws] connecting to %s", url)
 
-	conn, _, err := dialer.Dial(url, nil)
+	conn, resp, err := dialer.Dial(url, nil)
 	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+			return nil, ErrUnauthorized
+		}
 		// Fingerprint mismatch or network error surfaces here
 		return nil, fmt.Errorf("ws dial failed: %w", err)
 	}

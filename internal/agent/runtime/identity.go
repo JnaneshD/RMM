@@ -59,7 +59,11 @@ func PrimaryMac() (string, error) {
 	return "", fmt.Errorf("no suitable network interface found")
 }
 
-const uuidFile = "agent.uuid"
+const (
+	uuidFile  = "agent.uuid"
+	tokenFile = "agent.token"
+	urlFile   = "agent.url"
+)
 
 // AgentUUID returns the persistent agent UUID.
 // First run: generates a new UUID and saves it to disk.
@@ -82,4 +86,49 @@ func AgentUUID() (string, error) {
 	}
 
 	return id, nil
+}
+
+// LoadAgentToken reads the saved token from disk.
+func LoadAgentToken() (string, error) {
+	data, err := os.ReadFile(tokenFile)
+	if err == nil {
+		token := strings.TrimSpace(string(data))
+		if token != "" {
+			return token, nil
+		}
+	}
+	return "", fmt.Errorf("token not found")
+}
+
+// SaveAgentToken persists the session token to disk.
+func SaveAgentToken(token string) error {
+	if err := os.WriteFile(tokenFile, []byte(token), 0600); err != nil {
+		return fmt.Errorf("save agent token: %w", err)
+	}
+	return nil
+}
+
+// ClearAgentToken removes the token from disk.
+func ClearAgentToken() error {
+	return os.Remove(tokenFile)
+}
+
+// LoadServerURL reads the saved server URL from disk.
+func LoadServerURL() (string, error) {
+	data, err := os.ReadFile(urlFile)
+	if err == nil {
+		url := strings.TrimSpace(string(data))
+		if url != "" {
+			return url, nil
+		}
+	}
+	return "", fmt.Errorf("server url not found")
+}
+
+// SaveServerURL persists the server URL to disk.
+func SaveServerURL(url string) error {
+	if err := os.WriteFile(urlFile, []byte(url), 0600); err != nil {
+		return fmt.Errorf("save server url: %w", err)
+	}
+	return nil
 }

@@ -24,7 +24,7 @@ func (w *WindowsExecutor) Execute(command string) (string, error) {
 type LinuxExecutor struct{}
 
 func (l *LinuxExecutor) Execute(command string) (string, error) {
-	cmd := exec.Command("sh", "-C", command)
+	cmd := exec.Command("sh", "-c", command)
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
@@ -39,7 +39,7 @@ func NewExecutor() Executor {
 }
 
 func ExecuteJob(job *domain.Job, executor Executor) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
 	defer cancel()
 
 	resultCh := make(chan struct {

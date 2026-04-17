@@ -61,7 +61,7 @@ func main() {
 
 	router := gin.Default()
 	api.RegisterRoutes(router, httpHandler, socketHandler)
-	if err := router.RunTLS(":8080", "cert.pem", "key.pem"); err != nil {
+	if err := router.RunTLS(":8081", "cert.pem", "key.pem"); err != nil {
 		log.Fatalf("failed to start TLS server: %v", err)
 	}
 	//router.Run("0.0.0.0:8000")
