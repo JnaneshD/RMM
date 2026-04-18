@@ -54,7 +54,7 @@ func Worker(ctx context.Context, id int, jobQueue <-chan *domain.Job, scheduler 
 				log.Printf("Worker %d, job queue closed, cancelling", id)
 				return
 			}
-			log.Printf("Worker %d, executing the job %s", id, job.Command)
+			log.Printf("Worker %d, executing the job %s with jobid - %d", id, job.Command, job.ID)
 			scheduler.AddJobImmediate(ctx, job)
 		}
 	}
