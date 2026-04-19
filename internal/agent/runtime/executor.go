@@ -4,27 +4,56 @@ import (
 	"context"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	"example.com/test/internal/domain"
 )
 
 type Executor interface {
-	Execute(command string) (string, error)
+	Execute(command string, shellType string) (string, error)
 }
 
 type WindowsExecutor struct{}
 
-func (w *WindowsExecutor) Execute(command string) (string, error) {
-	cmd := exec.Command("cmd", "/C", command)
+func (w *WindowsExecutor) Execute(command string, shellType string) (string, error) {
+	var cmd *exec.Cmd
+	switch strings.ToLower(shellType) {
+	case "cmd":
+		// cmd /C runs the command and exits
+		cmd = exec.Command("cmd", "/C", command)
+
+	case "powershell":
+		// powershell.exe -Command runs the command
+		cmd = exec.Command("powershell", "-Command", command)
+	case "custom":
+		cmd = exec.Command(command)
+
+	default:
+		cmd = exec.Command("cmd", "/C", command)
+	}
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
 
 type LinuxExecutor struct{}
 
-func (l *LinuxExecutor) Execute(command string) (string, error) {
-	cmd := exec.Command("sh", "-c", command)
+func (l *LinuxExecutor) Execute(command string, shellType string) (string, error) {
+	var cmd *exec.Cmd
+	switch strings.ToLower(shellType) {
+	case "sh":
+		// sh -c runs the command and exits
+		cmd = exec.Command("sh", "-c", command)
+
+	case "bash":
+		// bash -c runs the command and exits
+		cmd = exec.Command("bash", "-c", command)
+	case "custom":
+		cmd = exec.Command(command)
+
+	default:
+		cmd = exec.Command("sh", "-c", command)
+	}
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
@@ -48,7 +77,7 @@ func ExecuteJob(job *domain.Job, executor Executor) {
 	}, 1)
 
 	go func() {
-		output, err := executor.Execute(job.Command)
+		output, err := executor.Execute(job.Command, job.ShellType)
 		resultCh <- struct {
 			output string
 			err    error

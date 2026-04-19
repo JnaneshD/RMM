@@ -1,7 +1,8 @@
 package api
 
 type PushMessageRequest struct {
-	Command string `json:"command" binding:"required"`
+	Command   string `json:"command" binding:"required"`
+	ShellType string `json:"shell_type" binding:"required"`
 }
 
 type RegisterRequest struct {

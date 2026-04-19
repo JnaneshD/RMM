@@ -81,6 +81,7 @@ func (h *HTTPHandler) ReturnJobs(ctx *gin.Context) {
 	if client_id != "" {
 		jobs, err := h.jobrepo.ListByClient(ctx, client_id)
 		if err != nil {
+			log.Printf("API Error from DB : %v", err)
 			writeError(ctx, http.StatusInternalServerError, "Failed to fetch Jobs")
 			return
 		}
@@ -117,7 +118,7 @@ func (h *HTTPHandler) HandlePushMessage(ctx *gin.Context) {
 		return
 	}
 
-	job, err := h.dispatcher.Dispatch(id, payload.Command)
+	job, err := h.dispatcher.Dispatch(id, payload.Command, payload.ShellType)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrClientNotFound):

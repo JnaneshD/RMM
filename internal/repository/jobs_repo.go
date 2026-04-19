@@ -18,18 +18,19 @@ func NewJobRepository(db *pgxpool.Pool) *JobRepository {
 	return &JobRepository{db: db}
 }
 
-func (r *JobRepository) Create(ctx context.Context, clientID, command string) (domain.Job, error) {
+func (r *JobRepository) Create(ctx context.Context, clientID, command, shellType string) (domain.Job, error) {
 	job := domain.Job{
-		ClientID: clientID,
-		Command:  command,
-		Status:   domain.WAIT,
+		ClientID:  clientID,
+		Command:   command,
+		Status:    domain.WAIT,
+		ShellType: shellType,
 	}
 
 	err := r.db.QueryRow(ctx,
-		`INSERT INTO jobs (client_id, command, status, result)
-		 VALUES ($1, $2, $3, $4)
+		`INSERT INTO jobs (client_id, command, status, shell_type, result)
+		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id`,
-		job.ClientID, job.Command, job.Status.String(), job.Output,
+		job.ClientID, job.Command, job.Status.String(), job.ShellType, job.Output,
 	).Scan(&job.ID)
 	if err != nil {
 		return domain.Job{}, err
@@ -81,7 +82,7 @@ func (r *JobRepository) GetPendingByClient(ctx context.Context, clientID string)
 
 func (r *JobRepository) ListAll(ctx context.Context) (map[string][]domain.Job, error) {
 	rows, err := r.db.Query(ctx,
-		`SELECT id, client_id, command, status, COALESCE(result, '')
+		`SELECT id, client_id, command, shell_type, status, COALESCE(result, '')
 		 FROM jobs
 		 ORDER BY client_id ASC, id ASC`,
 	)
@@ -96,7 +97,7 @@ func (r *JobRepository) ListAll(ctx context.Context) (map[string][]domain.Job, e
 			job       domain.Job
 			statusStr string
 		)
-		if err := rows.Scan(&job.ID, &job.ClientID, &job.Command, &statusStr, &job.Output); err != nil {
+		if err := rows.Scan(&job.ID, &job.ClientID, &job.Command, &job.ShellType, &statusStr, &job.Output); err != nil {
 			return nil, err
 		}
 		job.Status = parseJobStatus(statusStr)
@@ -117,7 +118,7 @@ func (r *JobRepository) ListAll(ctx context.Context) (map[string][]domain.Job, e
 
 func (r *JobRepository) ListByClient(ctx context.Context, clientId string) ([]domain.Job, error) {
 	rows, err := r.db.Query(ctx,
-		`SELECT id, client_id, command, status, COALESCE(result,'')
+		`SELECT id, client_id, command, shell_type, status, COALESCE(result,'')
 	FROM jobs
 	WHERE client_id = $1
 	ORDER BY id DESC`, clientId)
@@ -135,7 +136,7 @@ func (r *JobRepository) ListByClient(ctx context.Context, clientId string) ([]do
 			statusStr string
 		)
 
-		err := rows.Scan(&job.ID, &job.ClientID, &job.Command, &statusStr, &job.Output)
+		err := rows.Scan(&job.ID, &job.ClientID, &job.Command, &job.ShellType, &statusStr, &job.Output)
 		if err != nil {
 			return nil, err
 		}
