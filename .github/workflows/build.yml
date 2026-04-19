@@ -1,0 +1,38 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'latest'
+        check-latest: true
+
+    - name: Build Linux (amd64)
+      run: |
+        mkdir -p build/linux
+        GOOS=linux GOARCH=amd64 go build -v -o build/linux/agent ./cmd/agent
+        GOOS=linux GOARCH=amd64 go build -v -o build/linux/server ./cmd/server
+
+    - name: Build Windows (amd64)
+      run: |
+        mkdir -p build/windows
+        GOOS=windows GOARCH=amd64 go build -v -o build/windows/agent.exe ./cmd/agent
+        GOOS=windows GOARCH=amd64 go build -v -o build/windows/server.exe ./cmd/server
+
+    - name: Upload Binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: rmm-binaries
+        path: build/
+        retention-days: 7
