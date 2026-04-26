@@ -11,12 +11,12 @@ import (
 )
 
 type Executor interface {
-	Execute(command string, shellType string) (string, error)
+	Execute(command string, shellType string, jobDir string) (string, error)
 }
 
 type WindowsExecutor struct{}
 
-func (w *WindowsExecutor) Execute(command string, shellType string) (string, error) {
+func (w *WindowsExecutor) Execute(command string, shellType string, jobDir string) (string, error) {
 	var cmd *exec.Cmd
 	switch strings.ToLower(shellType) {
 	case "cmd":
@@ -32,13 +32,16 @@ func (w *WindowsExecutor) Execute(command string, shellType string) (string, err
 	default:
 		cmd = exec.Command("cmd", "/C", command)
 	}
+	if jobDir != "" {
+		cmd.Dir = jobDir
+	}
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
 
 type LinuxExecutor struct{}
 
-func (l *LinuxExecutor) Execute(command string, shellType string) (string, error) {
+func (l *LinuxExecutor) Execute(command string, shellType string, jobDir string) (string, error) {
 	var cmd *exec.Cmd
 	switch strings.ToLower(shellType) {
 	case "sh":
@@ -53,6 +56,9 @@ func (l *LinuxExecutor) Execute(command string, shellType string) (string, error
 
 	default:
 		cmd = exec.Command("sh", "-c", command)
+	}
+	if jobDir != "" {
+		cmd.Dir = jobDir
 	}
 	output, err := cmd.CombinedOutput()
 	return string(output), err
@@ -77,7 +83,7 @@ func ExecuteJob(job *domain.Job, executor Executor) {
 	}, 1)
 
 	go func() {
-		output, err := executor.Execute(job.Command, job.ShellType)
+		output, err := executor.Execute(job.Command, job.ShellType, job.JobDir)
 		resultCh <- struct {
 			output string
 			err    error

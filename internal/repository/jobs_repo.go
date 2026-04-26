@@ -18,12 +18,13 @@ func NewJobRepository(db *pgxpool.Pool) *JobRepository {
 	return &JobRepository{db: db}
 }
 
-func (r *JobRepository) Create(ctx context.Context, clientID, command, shellType string) (domain.Job, error) {
+func (r *JobRepository) Create(ctx context.Context, clientID, command, shellType, jobDir string) (domain.Job, error) {
 	job := domain.Job{
 		ClientID:  clientID,
 		Command:   command,
 		Status:    domain.WAIT,
 		ShellType: shellType,
+		JobDir:    jobDir,
 	}
 
 	err := r.db.QueryRow(ctx,

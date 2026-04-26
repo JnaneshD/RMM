@@ -118,7 +118,7 @@ func (h *HTTPHandler) HandlePushMessage(ctx *gin.Context) {
 		return
 	}
 
-	job, err := h.dispatcher.Dispatch(id, payload.Command, payload.ShellType)
+	job, err := h.dispatcher.Dispatch(id, payload.Command, payload.ShellType, payload.JobDir)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrClientNotFound):

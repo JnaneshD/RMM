@@ -3,6 +3,7 @@ package api
 type PushMessageRequest struct {
 	Command   string `json:"command" binding:"required"`
 	ShellType string `json:"shell_type" binding:"required"`
+	JobDir    string `json:"job_dir"`
 }
 
 type RegisterRequest struct {

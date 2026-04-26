@@ -55,7 +55,7 @@ func (d *Dispatcher) JobsSnapshot() map[string][]domain.Job {
 	return jobs
 }
 
-func (d *Dispatcher) Dispatch(clientID, command, shellType string) (domain.Job, error) {
+func (d *Dispatcher) Dispatch(clientID, command, shellType, jobDir string) (domain.Job, error) {
 	client, exists := d.hub.GetClient(clientID)
 	if !exists {
 		return domain.Job{}, ErrClientNotFound
@@ -64,7 +64,7 @@ func (d *Dispatcher) Dispatch(clientID, command, shellType string) (domain.Job, 
 	var job domain.Job
 	if d.jobRepo != nil {
 		var err error
-		job, err = d.jobRepo.Create(context.Background(), clientID, command, shellType)
+		job, err = d.jobRepo.Create(context.Background(), clientID, command, shellType, jobDir)
 		if err != nil {
 			return domain.Job{}, err
 		}
@@ -74,6 +74,7 @@ func (d *Dispatcher) Dispatch(clientID, command, shellType string) (domain.Job, 
 			Command:   command,
 			Status:    domain.WAIT,
 			ShellType: shellType,
+			JobDir:    jobDir,
 		}
 	}
 	select {

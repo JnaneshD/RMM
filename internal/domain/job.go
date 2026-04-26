@@ -7,6 +7,7 @@ type Job struct {
 	Status    JobStatus `json:"status"`
 	Output    string    `json:"output"`
 	ShellType string    `json:"shell_type"`
+	JobDir    string    `json:"job_dir"`
 }
 
 type JobStatus int
