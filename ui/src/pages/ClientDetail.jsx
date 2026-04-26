@@ -16,6 +16,9 @@ export default function ClientDetail() {
   const [jobStatusFilter, setJobStatusFilter] = useState("all");
   const [jobSortField, setJobSortField] = useState("id");
   const [jobSortDirection, setJobSortDirection] = useState("desc");
+  const [shellType, setShellType] = useState("");
+
+  const isWindows = client?.operating_system?.toLowerCase().includes("windows") ?? false;
 
   const visibleJobs = useMemo(() => {
     const normalizedSearch = jobSearch.trim().toLowerCase();
@@ -65,8 +68,10 @@ export default function ClientDetail() {
       return;
     }
 
+    const currentShellType = shellType || (isWindows ? "cmd" : "sh");
+
     try {
-      await dispatchMutation.mutateAsync({ clientId: id, command: value });
+      await dispatchMutation.mutateAsync({ clientId: id, command: value, shell_type: currentShellType });
       setCommand("");
       refetch();
     } catch {
@@ -142,9 +147,30 @@ export default function ClientDetail() {
 
           <Panel>
             <div className="mb-4 flex items-center justify-between gap-4">
-              <div className="space-y-1">
+              <div className="space-y-1 w-full lg:w-auto">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Run command</p>
-                <h3 className="text-base font-semibold text-slate-900">Dispatch a new job</h3>
+                <div className="flex items-center gap-4">
+                  <h3 className="text-base font-semibold text-slate-900">Dispatch a new job</h3>
+                  <select
+                    value={shellType || (isWindows ? "cmd" : "sh")}
+                    onChange={(event) => setShellType(event.target.value)}
+                    className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 outline-none transition focus:border-sky-500 focus:bg-white"
+                  >
+                    {isWindows ? (
+                      <>
+                        <option value="cmd">Command Prompt (cmd)</option>
+                        <option value="powershell">PowerShell</option>
+                        <option value="custom">Custom</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="sh">sh</option>
+                        <option value="bash">bash</option>
+                        <option value="custom">Custom</option>
+                      </>
+                    )}
+                  </select>
+                </div>
               </div>
               <p className="hidden text-sm text-slate-500 lg:block">
                 Submit a command and track it below.

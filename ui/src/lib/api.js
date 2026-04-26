@@ -40,10 +40,10 @@ export function fetchJobs(clientId = null) {
   return request(url);
 }
 
-export function dispatchCommand(clientId, command) {
+export function dispatchCommand(clientId, command, shell_type) {
   return request(`/push/${clientId}`, {
     method: "POST",
-    body: JSON.stringify({ command }),
+    body: JSON.stringify({ command, shell_type }),
   });
 }
 

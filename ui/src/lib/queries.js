@@ -110,7 +110,7 @@ function useMutation(mutationFn) {
 }
 
 export function useDispatchCommand() {
-  return useMutation(({ clientId, command }) => dispatchCommand(clientId, command));
+  return useMutation(({ clientId, command, shell_type }) => dispatchCommand(clientId, command, shell_type));
 }
 
 export function useDeleteClientJobs() {
